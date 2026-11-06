@@ -27,7 +27,7 @@ local methods={}
 local meta={}
 meta.__index=function(t,key)
  if methods[key] then return methods[key] end
- if key=="Position" then return t.Properties.CFrame and t.Properties.CFrame.Position or v() end
+ if key=="Position" and t.Properties.ClassName~="Attachment" then return t.Properties.CFrame and t.Properties.CFrame.Position or v() end
  if t.Properties[key]~=nil then return t.Properties[key] end
  for _,child in t.Children do if child.Name==key then return child end end
  return nil
@@ -97,6 +97,11 @@ check(#W.Guards==15,"15 guard spawns exist")
 check(#N.Guards==15,"guard models created")
 local targets=0; for _ in N.Targets do targets+=1 end
 check(targets==65,"target models created without runtime indexing errors")
+for id,target in N.Targets do
+ check(not target.Prompt.RequiresLineOfSight,"citizen clothing cannot hide the native prompt / "..id)
+ check(target.Prompt.MaxActivationDistance==C.InteractDistance and target.Prompt.ClickablePrompt,"native prompt range and click support match scouting / "..id)
+ check(target.Prompt.Parent:IsA("Attachment") and target.Prompt.Parent.Parent==target.Model.PrimaryPart,"prompt uses a dedicated point above the body / "..id)
+end
 local secretCount=0; for _ in W.Secrets do secretCount+=1 end
 check(secretCount==15,"all city secrets are placed")
 for district=1,5 do
@@ -133,6 +138,13 @@ check(boxes>=20,"starter market is stocked")
 check(cafeSeats>=8,"cafes and food court contain actual seating")
 N:Tick(10,0.25)
 check(true,"NPC status and route update executes")
+local availability=N.Targets.D1N1
+availability.Reserved={};N:Tick(11,0.25)
+check(not availability.Model:GetAttribute("TargetAvailable") and not availability.Prompt.Enabled,"reserved targets hide both native and fallback actions")
+availability.Reserved=nil;availability.Available=12;N:Tick(11,0.25)
+check(not availability.Model:GetAttribute("TargetAvailable"),"recovery also suppresses the fallback action")
+N:Tick(13,0.25)
+check(availability.Model:GetAttribute("TargetAvailable") and availability.Prompt.Enabled,"recovery expiry restores both interaction paths")
 for d=1,5 do
  check(W.Stations.Bank[5+d]~=nil,"every hidden workshop has an external van intake")
  check(W.VanSpawns[d]~=nil,"every garage has a van spawn")
@@ -182,6 +194,8 @@ N:Prepare()
 check(N.AvatarTemplate~=nil,"R15 API success produces a reusable template")
 local citizen=N:Actor(W.Root.Actors,"Detailed Citizen",v(0,0,25),C.Palette.Purple)
 check(citizen:GetAttribute("R15Citizen"),"live citizen uses a real articulated-rig model path")
+local rigPrompt=N:Prompt(citizen,"Target","rig-fixture","Scout citizen")
+check(not rigPrompt.RequiresLineOfSight and rigPrompt.Parent.Position.Y>0,"R15 rigs also use an elevated prompt without self-occlusion")
 check(citizen:FindFirstChild("Jacket left lapel")~=nil,"rig has modelled clothing detail")
 check(citizen:FindFirstChild("CitizenPhone")~=nil,"rig has its living-city phone prop")
 check(citizen:FindFirstChild("Umbrella canopy")~=nil,"rig has weather-reactive umbrella geometry")

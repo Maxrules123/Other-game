@@ -132,6 +132,23 @@ G.ApplyMovement=function() end
 local target={Id="D1N1",District=1,Model={PrimaryPart={Position=vec(0,3,3)}},Origin=vec(0,3,3),Available=0,Reserved=nil,Suspicion=0}
 G.NPC={Targets={D1N1=target},Guards={}}
 for _,p in {stateA,stateB} do G.State[p]={Loot={},Heat=0,LastTrouble=0,Immunity=0,Chase=false,VaultCooldown=0,Tokens=16,TokenTime=now} end
+T:Scout(stateA,"D1N1")
+check(G.Remote.Events[#G.Remote.Events][2]=="Scout","nearby target scouting reaches the client choice dialog")
+check(G.State[stateA].Attempt==nil and target.Reserved==nil,"a scout preview alone never reserves a target or awards loot")
+G.Security.Visible=function() return false end
+check(T:Eligible(stateA,"D1N1")==nil,"server still rejects scouting through walls without native camera occlusion")
+T:Begin(stateA,"D1N1","Careful")
+check(G.State[stateA].Attempt==nil,"server rechecks world obstruction when the choice is confirmed")
+G.Security.Visible=function() return true end
+root.Position=vec(C.InteractDistance+1,3,3)
+check(T:Eligible(stateA,"D1N1")==nil,"server rejects fallback scouting beyond the interaction radius")
+root.Position=vec(C.InteractDistance,3,3)
+check(T:Eligible(stateA,"D1N1")==target,"native and fallback scouting share the server distance boundary")
+root.Position=vec(0,3,3);target.Reserved=stateB
+check(T:Eligible(stateA,"D1N1")==nil,"fallback cannot bypass another player's target reservation")
+target.Reserved=nil;target.Available=now+1
+check(T:Eligible(stateA,"D1N1")==nil,"fallback cannot bypass the target recovery timer")
+target.Available=0
 local function finishProcessing()
  B:Act(stateA,"Press")
  if profile.Processing.Ends>0 then time=profile.Processing.Ends+1 end

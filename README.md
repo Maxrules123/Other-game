@@ -9,7 +9,7 @@ A substantially rebuilt Roblox arcade city with moving traffic, articulated citi
 1. Download the ZIP of the **After Hours branch**, then Extract All.
 2. Open **CreditCardStealer.rbxl** in Roblox Studio.
 3. Press **Play**. The city builds when the server starts.
-4. You spawn in the hidden workshop. Leave the door, turn left through the alley, and scout a citizen on the avenue.
+4. You spawn in the hidden workshop. Leave the door, turn left through the alley, and walk up to a citizen on the avenue. Press **E / controller X**, tap the floating prompt, or use the mint **SCOUT** button at the bottom of the screen.
 5. Choose Careful/Bold and finish every timing stage. Bring cards back to the intake, use the ink press, then the cartoon rinse, then claim the Cash printer payout.
 
 Use this branch's place, not an earlier downloaded build. The original nine-mesh/fifteen-texture source pack is in `assets/AfterHours-Art.zip`; extract it as described in **ASSET-IMPORT.md** to use custom imported skins. The place works immediately with detailed original Roblox models, native material textures, and a Roblox-generated R15 citizen rig with a fallback if that API is unavailable.

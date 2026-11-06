@@ -7,10 +7,12 @@ local Shared=game:GetService("ReplicatedStorage").Shared
 local C=require(Shared.Config)
 local R=require(Shared.Rules)
 local K=require(script.Parent.UIComponents)
+local Targets=require(script.Parent.TargetController)
 local CosmeticModels=require(Shared.CosmeticModels)
 local P=K.Color
 local U: any={State=nil,Current=nil,Signature="",Timing=nil,GearTab=1,CollectionFilter=0,NoticeId=0,RevealId=0}
 function U:Send(action: string,arg: any?) self.Remote:FireServer(action,arg) end
+function U:RequestScout(id: string?): boolean return Targets.Request(self,id) end
 function U:Focus(item: GuiObject?) if Input.GamepadEnabled then GuiService.SelectedObject=item end end
 function U:Button(parent: Instance,title: string,area: UDim2,pos: UDim2?,callback: ()->(),color: Color3?): TextButton
  return K.button(parent,title,area,pos,function() self.Audio:Play("Click"); callback() end,color)
@@ -32,6 +34,7 @@ function U:Init(remote: RemoteEvent,audio: any,effects: any)
  self.Context=K.label(root,"",12,P.Text,UDim2.new(1,-16,0,52),UDim2.new(0,8,1,-172)); self.Context.TextXAlignment=Enum.TextXAlignment.Center
  self.MenuButton=self:Button(root,"OPEN CITY DESK",UDim2.fromOffset(140,48),UDim2.new(0.5,-70,1,-58),function() self:Open("Overview") end,P.Panel); self.MenuButton.TextColor3=P.Text; K.border(self.MenuButton)
  self.DecoyButton=self:Button(root,"DECOY",UDim2.fromOffset(136,44),UDim2.new(0.5,-68,1,-110),function() self:Send("Decoy") end,P.Purple); self.DecoyButton.Visible=false
+ self.ScoutButton=self:Button(root,"SCOUT / E / X",UDim2.fromOffset(160,48),UDim2.new(0.5,-80,1,-58),function() self:RequestScout() end,P.Mint); self.ScoutButton.Visible=false
  local menu=K.frame(root,UDim2.fromScale(1,1),nil,P.Background); K.round(menu,16); K.border(menu); menu.ZIndex=20; menu.Visible=false; menu.Active=true; self.Menu=menu
  self.MenuTitle=K.label(menu,"CITY DESK",23,P.Text,UDim2.new(1,-90,0,58),UDim2.fromOffset(20,5)); self.MenuTitle.Font=Enum.Font.GothamBold
  self.CloseButton=self:Button(menu,"×",UDim2.fromOffset(48,44),UDim2.new(1,-62,0,12),function() self:Close() end,P.Raised)
@@ -360,10 +363,14 @@ end
 function U:UpdateContext()
  if not self.State then return end
  local blocked=self.Current or self.Timing or self.Modal.Visible
+ local target=if not blocked and not self.State.Vault then Targets.Find() else nil
+ self.ScoutButton.Visible=target~=nil
+ self.MenuButton.Position=if target then UDim2.new(0.5,8,1,-110) else UDim2.new(0.5,-70,1,-58)
+ self.DecoyButton.Position=if target then UDim2.new(0.5,-148,1,-110) else UDim2.new(0.5,-68,1,-110)
  self.MenuButton.Visible=not blocked; self.DecoyButton.Visible=not blocked and self.State.Profile.Upgrades.Gadgets>0 and not self.State.Vault
  if self.HideoutController then self.HideoutController:RefreshSecrets(self.State.Profile) end
  if blocked then self.Context.Text=""; return end
- self.Context.Text=if self.State.Chase then "You carry $"..K.number(self.State.Value).." / banked and stored progress stays safe" elseif #self.State.Loot>0 then "Find the alley backroom to secure cards / van rear doors provide mobile storage" else "Scout a citizen / choose Careful or Bold / clear every timing stage"
+ self.Context.Text=if target then target.Name.." / press E, controller X or tap SCOUT" elseif self.State.Chase then "You carry $"..K.number(self.State.Value).." / banked and stored progress stays safe" elseif #self.State.Loot>0 then "Find the alley backroom to secure cards / van rear doors provide mobile storage" else "Leave the workshop through the alley / walk up to a citizen on the avenue"
 end
 function U:BuildTiming()
  local layer=K.frame(self.Gui,UDim2.fromScale(1,1),nil,P.Background); layer.BackgroundTransparency=0.35; layer.ZIndex=140; layer.Visible=false; self.TimingLayer=layer

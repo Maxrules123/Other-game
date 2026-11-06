@@ -2,10 +2,10 @@
 
 ## Executed here
 
-- Luau CLI 0.745 compiled all **28** production source files.
-- **236** domain assertions executed actual Config, Rules, Data, Inventory, Missions, Interaction, Security, Processing, Vehicle storage and Cosmetic transaction code under mocked engine boundaries.
-- **792** world/model/environment assertions executed actual map/model constructors, NPC routes, traffic and weather logic, R15 construction using an API fixture, wearable construction/restoration, and physical-van model setup under lightweight instance/vector mocks.
-- **391** UI component assertions executed every panel at desktop, portrait and compact-landscape mock sizes, including shop/item/full-avatar previews, touch-target dimensions, staged input, modal reset wording and cleanup. This does not render Roblox UI or validate actual device focus.
+- Luau CLI 0.745 compiled all **29** production source files.
+- **244** domain assertions executed actual Config, Rules, Data, Inventory, Missions, Interaction, Security, Processing, Vehicle storage and Cosmetic transaction code under mocked engine boundaries.
+- **991** world/model/environment assertions executed actual map/model constructors, NPC routes, traffic and weather logic, R15 construction using an API fixture, wearable construction/restoration, and physical-van model setup under lightweight instance/vector mocks.
+- **423** UI component assertions executed every panel at desktop, portrait and compact-landscape mock sizes, including shop/item/full-avatar previews, touch-target dimensions, staged input, modal reset wording and cleanup. This does not render Roblox UI or validate actual device focus.
 - **165** asset checks validated nine OBJ models, triangle/vertex/UV/normal indices and bounds, unit normals, fifteen 512×512 PNG maps, and material references. These are source checks, not Roblox import tests.
 - Rojo 7.7.1 built the full DataModel. The packaged place is checked against the source text, and ZIP integrity is checked separately.
 - An offline unexpected-global-name scan found no undeclared names outside the known Roblox globals. This is not Roblox-aware strict type analysis.
@@ -18,6 +18,7 @@ The domain suite covers migration, save/lease failures, timing bounds/scaling an
 
 - [ ] Open this version's CreditCardStealer.rbxl; Play; build city without runtime errors in Output.
 - [ ] Spawn on the workshop floor, use the clear doorway, reach the avenue through the side alley and complete the first successful target interaction in roughly 30 seconds.
+- [ ] Approach a citizen from multiple camera angles in both R15/fallback paths. See the floating E/X prompt and mint SCOUT button; test each plus E/X with native prompts disabled. A single key/tap opens one choice dialog. Walls, distance, recovery, typing, menus and active games block scouting appropriately; shops/machines retain their keys. Repeat after respawn and streaming out/in.
 - [ ] Complete Careful/Bold, every personality and each district's stage count. Verify narrower/faster/drifting endgame challenges stay attainable with gear, including high-ping simulation.
 - [ ] Miss later stages, time out, cancel, leave/rejoin and attempt simultaneous claims with two players. Award one card only after the full clear; a replayed phase token must not advance or award again.
 - [ ] Check first-time objective guidance through deposit, pressing, rinsing, payout and first upgrade.

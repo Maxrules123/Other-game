@@ -37,7 +37,7 @@ meta.__newindex=function(t,k,v)
  if t.Signals[k] then t.Signals[k]:Fire() end
 end
 local function new(class)
- return setmetatable({Props={ClassName=class,Name=class,AbsoluteSize={X=1000,Y=760},ZIndex=1,CanvasPosition={X=0,Y=0},Activated=event(),Visible=true},Children={},Signals={}},meta)
+ return setmetatable({Props={ClassName=class,Name=class,AbsoluteSize={X=1000,Y=760},ZIndex=1,CanvasPosition={X=0,Y=0},Activated=event(),Visible=true},Children={},Signals={},Attributes={}},meta)
 end
 function methods:IsA(class) return self.ClassName==class or (class=="GuiObject" and guiClasses[self.ClassName]) or (class=="BasePart" and self.ClassName=="Part") end
 function methods:GetChildren() return table.clone(self.Children) end
@@ -48,6 +48,8 @@ function methods:FindFirstChildOfClass(class) for _,c in self.Children do if c:I
 function methods:FindFirstChildWhichIsA(class,recursive) for _,c in self.Children do if c:IsA(class) then return c end; if recursive then local item=c:FindFirstChildWhichIsA(class,true); if item then return item end end end; return nil end
 function methods:IsDescendantOf(parent) local p=self.Parent; while p do if p==parent then return true end; p=p.Parent end; return false end
 function methods:GetPropertyChangedSignal(key) self.Signals[key]=self.Signals[key] or event(); return self.Signals[key] end
+function methods:SetAttribute(key,value) self.Attributes[key]=value end
+function methods:GetAttribute(key) return self.Attributes[key] end
 function methods:GetBoundingBox()
  local lo=vec(math.huge,math.huge,math.huge);local hi=vec(-math.huge,-math.huge,-math.huge)
  for _,p in self:GetDescendants() do if p:IsA("BasePart") then local a=p.Position-p.Size*.5;local b=p.Position+p.Size*.5;lo=vec(math.min(lo.X,a.X),math.min(lo.Y,a.Y),math.min(lo.Z,a.Z));hi=vec(math.max(hi.X,b.X),math.max(hi.Y,b.Y),math.max(hi.Z,b.Z)) end end
@@ -71,11 +73,17 @@ local shared={Config="Config",Rules="Rules",CosmeticModels="CosmeticModels"}; lo
 local remote={OnClientEvent=event(),Sent={}}
 function remote:FireServer(action,arg) table.insert(self.Sent,{action,arg}) end
 local render=event()
-local services={Players={LocalPlayer=player},ReplicatedStorage={Shared=shared,FindFirstChild=function() return nil end},UserInputService={GamepadEnabled=false},GuiService={},RunService={RenderStepped=render},TextService={GetTextSize=function(_,value,size,font,bounds) return {X=bounds.X,Y=math.ceil(#value*size*.55/bounds.X)*size*1.2} end}}
-local env={Instance={new=new},game={GetService=function(_,name) return assert(services[name],name) end},Enum=enum,Color3={fromRGB=color,new=color},Vector3={new=vec,zero=vec()},CFrame={new=cf,Angles=function() return cf() end,lookAt=function(p) return cf(p) end},Vector2={new=vector,zero=vector(0,0)},UDim2={new=dim2,fromOffset=function(x,y) return dim2(0,x,0,y) end,fromScale=function(x,y) return dim2(x,0,y,0) end},UDim={new=function(s,o) return {Scale=s,Offset=o} end},workspace={GetServerTimeNow=function() return 1000 end},task={spawn=function() end,delay=function() end},script={Parent={UIComponents="UIComponents"}},require=function(k) return modules[k] end}
+local world=new("Workspace"); function world:GetServerTimeNow() return 1000 end
+local clock=10; local walls={}; local rayParams=nil; local focused=nil
+function world:Raycast(origin,delta,params) rayParams=params; return walls[delta.X] end
+local otherPlayer={Character=new("Model")}
+local input={GamepadEnabled=false,InputBegan=event(),GetFocusedTextBox=function() return focused end}
+local proximity={PromptShown=event(),PromptHidden=event(),PromptTriggered=event()}
+local services={Players={LocalPlayer=player,GetPlayers=function() return {player,otherPlayer} end},ProximityPromptService=proximity,ReplicatedStorage={Shared=shared,FindFirstChild=function() return nil end},UserInputService=input,GuiService={},RunService={RenderStepped=render},TextService={GetTextSize=function(_,value,size,font,bounds) return {X=bounds.X,Y=math.ceil(#value*size*.55/bounds.X)*size*1.2} end}}
+local env={Instance={new=new},game={GetService=function(_,name) return assert(services[name],name) end},Enum=enum,Color3={fromRGB=color,new=color},Vector3={new=vec,zero=vec()},CFrame={new=cf,Angles=function() return cf() end,lookAt=function(p) return cf(p) end},Vector2={new=vector,zero=vector(0,0)},UDim2={new=dim2,fromOffset=function(x,y) return dim2(0,x,0,y) end,fromScale=function(x,y) return dim2(x,0,y,0) end},UDim={new=function(s,o) return {Scale=s,Offset=o} end},workspace=world,RaycastParams={new=function() return {} end},os=setmetatable({clock=function() return clock end},{__index=os}),task={spawn=function() end,delay=function() end},script={Parent={UIComponents="UIComponents",TargetController="TargetController"}},require=function(k) return modules[k] end}
 setmetatable(env,{__index=getfenv()})
 local function load(name) local f=assert(loadstring(Sources[name],name));setfenv(f,env);local m=f();modules[name]=m;return m end
-local C=load("Config");local R=load("Rules");load("CosmeticModels");local K=load("UIComponents");local U=load("UIController")
+local C=load("Config");local R=load("Rules");load("CosmeticModels");local K=load("UIComponents");local targets=load("TargetController");local U=load("UIController");local inputs=load("InputController")
 local audio={Play=function() end,Update=function() end};local effects={Tween=function(_,object,props) for k,v in props do object[k]=v end end,Shake=function() end,Celebrate=function() end}
 U:Init(remote,audio,effects)
 local profile={Cosmetics={Owned={canvas_mint=true,round_specs=true,courier_pack=true,mint_jacket=true},Equipped={Head="canvas_mint",Face="",Back="",Outfit=""}},Cash=100000,Reputation=1000,Starter=8,StarterProgress=0,Identities=2,Upgrades={},Hideout={},Districts={},Collection={},Milestones={},Secrets={},Badges={},Stats={Successes=25,Perfects=10,BestCombo=5,Banked=6000},Settings={Music=.35,Effects=.7,ReducedMotion=false,Shake=true,WeatherEffects=true},Daily={Day=2000,Progress={},Claimed={}},Processing={PendingCards=4,PendingValue=150,Stage="Pressing",Value=200,Cards=5,Ends=1006,Started=992,Duration=14},Contracts={Active="mara_2",Progress={mara_2=1},Claimed={mara_1=true}},Van={Owned=true,Stash={{Id="D1R1",Variant="Foil",Quality=1.1}}}}
@@ -120,4 +128,65 @@ check(string.find(U.DialogText.Text,"queued/active processing",1,true)~=nil,"pre
 check(string.find(U.DialogText.Text,"van ownership",1,true)~=nil,"prestige dialog declares kept van ownership")
 check(not avatar.Archivable,"avatar preview restores the original character clone setting")
 check(pg:FindFirstChild("CardCityUI")==U.Gui,"one persistent HUD exists")
+U:HideDialog(); U:Close()
+check(targets.Find()==nil,"scouting waits for the streamed city and character root")
+local root=new("Part");root.Name="HumanoidRootPart";root.CFrame=cf(0,3.5,0);root.Parent=avatar
+check(targets.Find()==nil,"no target is invented before the city streams in")
+local city=new("Folder");city.Name="CardCity";city.Parent=world
+check(targets.Find()==nil,"scanning tolerates an actors folder still streaming in")
+local actors=new("Folder");actors.Name="Actors";actors.Parent=city
+local function citizen(id,x)
+ local model=new("Model");model.Name="Citizen "..id;model:SetAttribute("TargetId",id);model:SetAttribute("TargetAvailable",true)
+ local part=new("Part");part.CFrame=cf(x,3.5,0);part.Parent=model;model.PrimaryPart=part;model.Parent=actors;return model
+end
+local far=citizen("D1N2",9);local near=citizen("D1N1",6);local out=citizen("D1N3",C.InteractDistance+1)
+local guard=citizen("guard",1);guard:SetAttribute("TargetId",nil)
+local partial=new("Model");partial:SetAttribute("TargetId","D1N4");partial.Parent=actors
+check(targets.Find()==near,"fallback finds the closest citizen even with no native prompt instance")
+check(targets.Find("D1N2")==far,"native prompt requests retain the citizen they refer to")
+check(targets.Find("missing")==nil,"unknown target ids do not create a request")
+check(table.find(rayParams.FilterDescendantsInstances,actors)~=nil,"line of sight excludes the citizen's own body")
+check(table.find(rayParams.FilterDescendantsInstances,avatar)~=nil and table.find(rayParams.FilterDescendantsInstances,otherPlayer.Character)~=nil,"line of sight excludes all player characters like the server")
+near:SetAttribute("TargetAvailable",false);check(targets.Find()==far,"busy or cooling targets are skipped")
+near:SetAttribute("TargetAvailable",true);walls[6]={};check(targets.Find()==far,"a closer citizen behind a wall is skipped")
+walls[9]={};check(targets.Find()==nil,"fallback cannot select through walls or beyond the server range")
+walls={};near.PrimaryPart.CFrame=cf(C.InteractDistance,3.5,0)
+check(targets.Find("D1N1")==near,"a citizen at the server's interaction boundary is selectable")
+near.PrimaryPart.CFrame=cf(6,3.5,0)
+near.Parent=nil;check(targets.Find()==far,"streamed-out citizens leave no stale target reference");near.Parent=actors
+root.Parent=nil;check(targets.Find()==nil,"respawn without a character root is safe");root.Parent=avatar
+U:UpdateContext();check(U.ScoutButton.Visible and string.find(U.Context.Text,near.Name,1,true)~=nil,"nearby citizen has a visible named Scout action")
+check(U.ScoutButton.Size.Y.Offset>=44,"Scout button is a full-size touch target")
+inputs.Start(U)
+local function scoutCount() local n=0;for _,request in remote.Sent do if request[1]=="Scout" then n+=1 end end;return n end
+local n=scoutCount();U.ScoutButton.Activated:Fire()
+check(scoutCount()==n+1 and remote.Sent[#remote.Sent][2]=="D1N1","touch Scout submits the closest real target id")
+input.InputBegan:Fire({KeyCode=enum.KeyCode.E},false)
+check(scoutCount()==n+1,"keyboard and touch firing together cannot duplicate a scout")
+clock+=1;input.InputBegan:Fire({KeyCode=enum.KeyCode.E},false)
+check(scoutCount()==n+2,"E works when no native prompt is shown")
+clock+=1;input.InputBegan:Fire({KeyCode=enum.KeyCode.ButtonX},false)
+check(scoutCount()==n+3,"controller X also works without a native prompt")
+local prompt=new("ProximityPrompt");prompt:SetAttribute("Action","Target");prompt:SetAttribute("Id","D1N2");prompt.KeyboardKeyCode=enum.KeyCode.E;prompt.GamepadKeyCode=enum.KeyCode.ButtonX;prompt.Enabled=true;prompt.Parent=far.PrimaryPart
+clock+=1;proximity.PromptShown:Fire(prompt);input.InputBegan:Fire({KeyCode=enum.KeyCode.E},false)
+check(scoutCount()==n+3,"visible native prompts retain ownership of their input key")
+proximity.PromptTriggered:Fire(prompt);proximity.PromptTriggered:Fire(prompt)
+check(scoutCount()==n+4 and remote.Sent[#remote.Sent][2]=="D1N2","native scouting uses its actual target and shares the duplicate guard")
+proximity.PromptHidden:Fire(prompt)
+local shop=new("ProximityPrompt");shop:SetAttribute("Action","Shop");shop.KeyboardKeyCode=enum.KeyCode.E;shop.Enabled=true;shop.Parent=city
+clock+=1;proximity.PromptShown:Fire(shop);input.InputBegan:Fire({KeyCode=enum.KeyCode.E},false);proximity.PromptTriggered:Fire(shop)
+check(scoutCount()==n+4 and U.Current=="Equipment","a shop prompt opens the shop without also scouting a nearby citizen")
+U:UpdateContext();check(not U.ScoutButton.Visible,"open City Desk hides the Scout button")
+check(not U:RequestScout(),"open menus block scout requests")
+U:Close();proximity.PromptHidden:Fire(shop)
+clock+=1;input.InputBegan:Fire({KeyCode=enum.KeyCode.E},true);focused={};input.InputBegan:Fire({KeyCode=enum.KeyCode.E},false);focused=nil
+check(scoutCount()==n+4,"processed input and typing cannot trigger a scout")
+prompt.Parent=nil;proximity.PromptShown:Fire(prompt);input.InputBegan:Fire({KeyCode=enum.KeyCode.E},false)
+check(scoutCount()==n+5,"a streamed-out native prompt cannot suppress fallback input")
+clock+=1;U.Modal.Visible=true;check(not U:RequestScout(),"scout choices block extra requests");U.Modal.Visible=false
+U.Timing={};check(not U:RequestScout(),"an active timing game blocks extra scouts");U.Timing=nil
+packet.Vault={};U:UpdateContext();check(not U.ScoutButton.Visible and not U:RequestScout(),"vault runs suppress target scouting");packet.Vault=nil
+near:SetAttribute("TargetAvailable",false);far:SetAttribute("TargetAvailable",false);U:UpdateContext()
+check(not U.ScoutButton.Visible,"Scout action hides when all nearby citizens are unavailable")
+local saved=U.State;U.State=nil;check(not U:RequestScout(),"no request can race profile initialization");U.State=saved
 print("PASS: "..count.." UI component assertions (mocked events/layout sizes; not device or rendering tests)")

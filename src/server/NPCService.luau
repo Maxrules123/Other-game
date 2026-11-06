@@ -2,6 +2,17 @@
 local C = require(game:GetService("ReplicatedStorage").Shared.Config)
 local F=require(script.Parent.ModelFactory)
 local N: any = { Targets = {}, Guards = {} }
+function N:Prompt(model: Model,action: string,id: string,label: string): ProximityPrompt
+ -- A camera ray to a root inside an R15 torso can hit the citizen's own body.
+ -- InteractionService checks player distance and world obstruction on the server.
+ local point=Instance.new("Attachment"); point.Name="InteractionPoint"; point.Position=Vector3.new(0,2.6,0); point.Parent=model.PrimaryPart
+ local prompt=Instance.new("ProximityPrompt"); prompt.Name="CitizenInteraction"; prompt.ActionText=label; prompt.ObjectText=model.Name
+ prompt.KeyboardKeyCode=Enum.KeyCode.E; prompt.GamepadKeyCode=Enum.KeyCode.ButtonX
+ prompt.MaxActivationDistance=C.InteractDistance; prompt.RequiresLineOfSight=false; prompt.HoldDuration=0; prompt.ClickablePrompt=true
+ prompt.Exclusivity=Enum.ProximityPromptExclusivity.OnePerButton
+ prompt:SetAttribute("Action",action); prompt:SetAttribute("Id",id); prompt.Parent=point
+ return prompt
+end
 function N:Prepare()
  -- Roblox supplies a genuine articulated R15 base; no unknown Toolbox scripts are loaded.
  local ok,rig=pcall(function()
@@ -90,13 +101,14 @@ function N:Build(world: any)
   model:SetAttribute("Style",style)
   local accessory=Instance.new("Part"); accessory.Name=if style=="VIP" then "Fancy hat" else "Cartoon backpack"; accessory.Anchored=true; accessory.CanCollide=false; accessory.Size=if style=="VIP" then Vector3.new(2,1.1,2) else Vector3.new(1.5,1.8,0.6); accessory.CFrame=model.PrimaryPart.CFrame*CFrame.new(0,if style=="VIP" then 3 else 0,if style=="VIP" then 0 else 0.8); accessory.Color=if style=="Collector" then C.Palette.Gold else C.Palette.Panel; accessory.Parent=model
   model:SetAttribute("TargetId",spawn.Id)
-  local prompt=Instance.new("ProximityPrompt"); prompt.ActionText="Scout cartoon target"; prompt.ObjectText=d.Name.." target"; prompt.KeyboardKeyCode=Enum.KeyCode.E; prompt.GamepadKeyCode=Enum.KeyCode.ButtonX; prompt.MaxActivationDistance=11; prompt.RequiresLineOfSight=true; prompt:SetAttribute("Action","Target"); prompt:SetAttribute("Id",spawn.Id); prompt.Parent=model.PrimaryPart
+  model:SetAttribute("TargetAvailable",true)
+  local prompt=self:Prompt(model,"Target",spawn.Id,"Scout citizen")
   self.Targets[spawn.Id]={Id=spawn.Id, District=spawn.District, Model=model, Prompt=prompt, Origin=spawn.Position+Vector3.new(0,3.8,0), Available=0, Reserved=nil, Suspicion=0, Phase=math.random()*6, State="Walking", Style=style, PauseLabel=spawn.PauseLabel or "Window shopping", Route=spawn.Route, Waypoint=1, PauseUntil=0}
  end
  for speaker,position in world.QuestPositions do
   local citizen=self:Actor(folder,speaker,position,C.Palette.Purple)
   citizen.PrimaryPart.Status.Text.Text=speaker.." / STORY CONTRACTS"
-  local q=Instance.new("ProximityPrompt"); q.ActionText="Talk to "..speaker; q.ObjectText="City contracts"; q:SetAttribute("Action","Quest"); q:SetAttribute("Id",speaker); q.MaxActivationDistance=11; q.Parent=citizen.PrimaryPart
+  self:Prompt(citizen,"Quest",speaker,"Talk to "..speaker)
  end
  for _,spawn in world.Guards do
   local model=self:Actor(folder,"Cardboard Security",spawn.Position,C.Palette.Panel)
@@ -109,6 +121,7 @@ function N:Tick(now: number, dt: number)
   target.Suspicion=math.max(0,target.Suspicion-dt*4)
   local busy=target.Reserved~=nil or target.Available>now
   target.Prompt.Enabled=not busy
+  target.Model:SetAttribute("TargetAvailable",not busy)
   target.Model:SetAttribute("Suspicion",math.floor(target.Suspicion))
   if not busy and target.Route and now>=target.PauseUntil and now>=(target.PreviewUntil or 0) then
    local root=target.Model.PrimaryPart

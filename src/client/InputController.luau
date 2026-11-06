@@ -4,10 +4,13 @@ local Proximity=game:GetService("ProximityPromptService")
 local Players=game:GetService("Players")
 local I={}
 function I.Start(ui: any)
+ local shown: {[ProximityPrompt]: boolean}={}
+ Proximity.PromptShown:Connect(function(prompt: ProximityPrompt) shown[prompt]=true end)
+ Proximity.PromptHidden:Connect(function(prompt: ProximityPrompt) shown[prompt]=nil end)
  Proximity.PromptTriggered:Connect(function(prompt: ProximityPrompt)
   if ui.Timing or ui.Modal.Visible then return end
   local action=prompt:GetAttribute("Action"); local id=prompt:GetAttribute("Id")
-  if action=="Target" then ui:Send("Scout",id)
+  if action=="Target" then ui:RequestScout(id)
   elseif action=="Bank" then ui:Open("Operations"); ui:Send("Bank")
   elseif action=="Press" then ui:Open("Operations"); ui:Send("Process","Press")
   elseif action=="Rinse" then ui:Open("Operations"); ui:Send("Process","Rinse")
@@ -32,6 +35,11 @@ function I.Start(ui: any)
   if Input:GetFocusedTextBox() then return end
   local key=input.KeyCode
   if ui.Timing and (key==Enum.KeyCode.Space or key==Enum.KeyCode.ButtonA) then ui:StopTiming(); return end
+  if not processed and (key==Enum.KeyCode.E or key==Enum.KeyCode.ButtonX) then
+   -- Let a visible native prompt handle its key, especially shops and machines.
+   for prompt in shown do if prompt.Parent and prompt.Enabled and (prompt.KeyboardKeyCode==key or prompt.GamepadKeyCode==key) then return end end
+   ui:RequestScout(); return
+  end
   if not processed and not ui.Modal.Visible and (key==Enum.KeyCode.G or key==Enum.KeyCode.ButtonR1) then ui:Send("Decoy"); return end
   if key==Enum.KeyCode.ButtonB or (key==Enum.KeyCode.Escape and not processed) then
    if ui.Timing then ui:Send("Cancel"); ui:EndTiming() elseif ui.Modal.Visible then ui:HideDialog() elseif ui.Current then ui:Close() end

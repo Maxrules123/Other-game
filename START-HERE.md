@@ -4,9 +4,9 @@ You already installed Roblox Studio and Rojo earlier. To try this version, you d
 
 1. Download the **After Hours branch ZIP** from GitHub and choose **Extract All**.
 2. Open Roblox Studio → **File → Open from File** → choose the extracted **CreditCardStealer.rbxl**.
-3. Press **Play**. You begin in the hidden alley workshop. The city generates when testing starts.
+3. Press **Play (F5)**, which spawns your character. You begin in the hidden alley workshop. The city generates when testing starts.
 4. Walk out of the workshop, turn left through the side alley beside the closed repair shop, then approach a citizen on the avenue.
-5. Use **E / controller X / tap** to scout. Choose Careful or Bold. Use **Space / A / LOCK IN** in each timing stage.
+5. Walk close until the bottom hint names the citizen. Press **E / controller X**, tap the floating prompt, or tap the mint **SCOUT** button to scout. Choose Careful or Bold. Use **Space / A / LOCK IN** in each timing stage.
 6. Return with cards. Use the intake, ink press, cartoon rinse, then Cash printer. Operations in the City Desk shows the job and explains every stage.
 7. Use the City Desk button (or Tab / Y) for gear, quests, van, outfits, wardrobe and settings. Shops and machines require actual proximity, so close the menu and walk to them when prompted.
 

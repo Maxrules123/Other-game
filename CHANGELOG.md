@@ -1,3 +1,11 @@
+# Citizen interaction fix
+
+- Moved citizen/contact prompts to a dedicated attachment above the torso and removed camera occlusion by their own bodies. All use E/controller X and support clicking/tapping.
+- Added a named nearby-target hint and a mint SCOUT button. E/controller X also work when the native prompt is absent, with fresh streamed-target lookup, distance and world-obstruction filtering.
+- Shared one request/debounce path across native prompts, keyboard/controller and touch; visible shop/machine prompts retain their input key.
+- Replicated target reservation/recovery availability so native prompts and the fallback action hide/recover together. Server checks for obstruction, range, cooldown, ownership, district, gear and capacity still apply.
+- Added native/R15 prompt, streamed target, touch/input arbitration and server-validation regressions. 29 sources compile; 244 domain, 991 world/model/environment, 423 UI and 165 asset checks pass. Studio runtime remains untested here.
+
 # After Hours overhaul
 
 - Expanded the footprint to approximately 1,200 × 390 studs, adding cross/perimeter roads, residential terraces, service alleys, native surface textures, details and additional planting.
@@ -14,4 +22,4 @@
 - Added five modelled outfitters, ten appearance-only cosmetics, shop previews, full-avatar wardrobe previews and four persistent wearable slots with safe headwear restoration.
 - Migrated earlier schemas into version 3 without changing the production store or discarding existing progression.
 
-Verification: 28 sources compile; 236 gameplay/data, 792 world/model/environment, 391 UI and 165 asset checks pass under mocks/static checks; Rojo builds. Real Studio graphics/rig APIs/physics/pathfinding/streaming/live persistence/device checks remain pending. Imported meshes/PBR images still require the account owner's Studio import/upload step; configured audio assets remain absent.
+Verification: 29 sources compile; 244 gameplay/data, 991 world/model/environment, 423 UI and 165 asset checks pass under mocks/static checks; Rojo builds. Real Studio graphics/rig APIs/physics/pathfinding/streaming/live persistence/device checks remain pending. Imported meshes/PBR images still require the account owner's Studio import/upload step; configured audio assets remain absent.

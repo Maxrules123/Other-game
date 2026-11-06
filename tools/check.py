@@ -39,7 +39,7 @@ with tempfile.TemporaryDirectory() as tmp:
     test.write_text(world_bundle)
     subprocess.run([args.luau, str(test)], check=True)
 ui_bundle = 'local Sources = {}\n'
-for module in ['shared/Config', 'shared/Rules', 'shared/CosmeticModels', 'client/UIComponents', 'client/UIController']:
+for module in ['shared/Config', 'shared/Rules', 'shared/CosmeticModels', 'client/UIComponents', 'client/TargetController', 'client/UIController', 'client/InputController']:
     source = (ROOT / 'src' / (module + '.luau')).read_text()
     ui_bundle += 'Sources[' + json.dumps(module.split('/')[-1]) + '] = [====[\n' + source + '\n]====]\n'
 ui_bundle += (ROOT / 'tests' / 'ui.luau').read_text()
