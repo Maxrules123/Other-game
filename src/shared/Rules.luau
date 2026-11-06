@@ -27,6 +27,18 @@ end
 function R.lootValue(base: number, variant: number, terminal: number, identities: number, config: any): number
  return math.floor(base * variant * (1 + terminal * config.TerminalPerLevel) * R.identityBonus(identities, config))
 end
+function R.processSeconds(kind: string,level: number,config: any): number
+ local base=if kind=="Press" then config.Processing.PressSeconds else config.Processing.RinseSeconds
+ return math.max(3,math.ceil(base*(1-level*config.Processing.SpeedPerLevel)))
+end
+function R.challenge(district: number,stage: number,sleight: number,focus: number,approach: any,style: any,config: any): any
+ local duration=math.max(0.95,(config.Timing.BaseDuration-district*config.Timing.DistrictSpeed)*(1-sleight*config.Timing.SleightSpeed)*approach.Duration)
+ local width=math.clamp((config.Timing.BaseWidth-district*config.Timing.DistrictWidth+focus*config.Timing.FocusWidth)*approach.Width*style.Width,0.085,0.36)
+ return {Duration=duration,Width=width,Drift=math.min(0.12,config.Stealing.Drift+(district-1)*0.012+(stage-1)*0.008),Pattern=({"Sweep","Reverse","Bounce"})[stage]}
+end
+function R.speedTowards(current: number,target: number,acceleration: number,dt: number): number
+ return current+math.clamp(target-current,-acceleration*dt,acceleration*dt)
+end
 function R.cursor(elapsed: number, duration: number, pattern: string): number
  local t=R.position(elapsed,duration)
  if pattern=="Reverse" then return 1-t end
@@ -71,6 +83,10 @@ function R.upgradeEffect(name: string, level: number, config: any): string
  elseif name=="Disguise" then return string.format("%d%% less lingering suspicion",level*config.Suspicion.DisguiseReduction*100)
  elseif name=="Terminal" then return string.format("+%d%% banking value",level*config.TerminalPerLevel*100)
  elseif name=="Composure" then return string.format("%d%% less interaction Heat",level*config.Stealing.Composure*100)
+ elseif name=="Press" or name=="Rinse" then return string.format("%d%% faster batches",level*config.Processing.SpeedPerLevel*100)
+ elseif name=="Yield" then return string.format("+%d%% batch payout",level*config.Processing.YieldPerLevel*100)
+ elseif name=="VanSlots" then return tostring(config.Van.BaseSlots+level*config.Van.SlotsPerLevel).." secured van slots"
+ elseif name=="Engine" then return tostring(config.Van.Speed+level*config.Van.SpeedPerLevel).." studs/s van speed"
  elseif name=="Appraisal" then return string.format("+%d%% rarity luck (stronger on higher tiers)",level*config.Stealing.Appraisal*100)
  else return if level==0 then "Decoy locked" else string.format("%d base charges · %ds cooldown",config.Gadget.BaseCharges+math.floor(level/config.Gadget.ChargeLevels),config.Gadget.Cooldown-level*config.Gadget.CooldownPerLevel) end
 end

@@ -18,7 +18,7 @@ Vector.__sub=function(a,b) return setmetatable({X=a.X-b.X,Y=a.Y-b.Y,Z=a.Z-b.Z},V
 Vector.__add=function(a,b) return setmetatable({X=a.X+b.X,Y=a.Y+b.Y,Z=a.Z+b.Z},Vector) end
 local function vec(x,y,z) return setmetatable({X=x,Y=y,Z=z},Vector) end
 local id=0
-local shared={Config="Config",Rules="Rules"}
+local shared={Config="Config",Rules="Rules",CosmeticModels="CosmeticModels"}
 local Modules={}
 local now=1000
 local time=1000000
@@ -43,7 +43,7 @@ local env={
  Vector3={new=vec},
  Random={new=function() return {NextNumber=function(_,lo,hi) return lo+(hi-lo)*0.5 end} end},
  game={GetService=function(_,name) return services[name] end},
- script={Parent={PlayerDataService="PlayerDataService",WorldService="WorldService",NPCService="NPCService",InventoryService="InventoryService",MissionService="MissionService",SecurityService="SecurityService",VaultService="VaultService",InteractionService="InteractionService"}},
+ script={Parent={PlayerDataService="PlayerDataService",WorldService="WorldService",NPCService="NPCService",InventoryService="InventoryService",MissionService="MissionService",SecurityService="SecurityService",VaultService="VaultService",InteractionService="InteractionService",ProcessingService="ProcessingService",VehicleService="VehicleService",ModelFactory="ModelFactory",EnvironmentService="EnvironmentService",TrafficService="TrafficService",CosmeticService="CosmeticService"}},
  workspace={GetServerTimeNow=function() return now end},
  task={wait=function() end},
  os={time=function() return time end,clock=function() return now end},
@@ -56,10 +56,16 @@ local function load(name)
 end
 local C=load("Config")
 local R=load("Rules")
+load("CosmeticModels")
 local M=load("MissionService")
 local I=load("InventoryService")
 local D=load("PlayerDataService")
 local T=load("InteractionService")
+local B=load("ProcessingService")
+Modules.ModelFactory={}
+local VService=load("VehicleService")
+local Cos=load("CosmeticService"); Cos.Apply=function(self,p) self.Applied=p end
+Modules.EnvironmentService={State="Clear",Clock=16}; Modules.TrafficService={}
 local function player(userId)
  return {UserId=userId,Parent=true,GetNetworkPing=function() return 0 end,Kick=function(self,msg) self.Kicked=msg end}
 end
@@ -110,7 +116,7 @@ equal(R.lootValue(100,2,2,2,C),246,"variant, terminal, identity value is rounded
 -- Use the real domain methods with engine boundaries replaced by deterministic mocks.
 Modules.WorldService={}; Modules.NPCService={}; Modules.SecurityService={}; Modules.VaultService={}
 local G=load("GameService")
-T:Init(G)
+T:Init(G); B:Init(G); VService.Game=G; Cos:Init(G)
 local profiles={}
 local stateA=player(10); local stateB=player(11)
 -- A real default profile from the data loader.
@@ -118,7 +124,7 @@ check(D:Load(stateA),"gameplay profile loads")
 profile=D:Get(stateA); profiles[stateA]=profile; profiles[stateB]=clone(profile)
 G.Data={Get=function(_,p) return profiles[p] end}
 G.Remote={Events={},FireClient=function(self,p,kind,packet) table.insert(self.Events,{p,kind,packet}) end}
-G.World={Checkpoints={"checkpoint"},Stations={Bank={vec(0,3,3)},Practice={vec(0,3,3)},Resupply={vec(0,3,3)},Hideout={vec(0,3,3)}},Secrets={},SecretParts={},SafeZones={vec(0,0,0)},InsideSafe=function() return true end,DistrictAt=function() return 1 end}
+G.World={Checkpoints={"checkpoint"},Stations={Bank={vec(0,3,3)},Practice={vec(0,3,3)},Resupply={vec(0,3,3)},Hideout={vec(0,3,3)},Press={vec(0,3,3)},Rinse={vec(0,3,3)},Payout={vec(0,3,3)},Garage={vec(0,3,3)},CosmeticShop={vec(0,3,3)},Wardrobe={vec(0,3,3)}},Secrets={},SecretParts={},SafeZones={vec(0,0,0)},InsideSafe=function() return true end,DistrictAt=function() return 1 end}
 G.Security={Visible=function() return true end}
 local root={Position=vec(0,3,3),CFrame="start"}
 G.Root=function() return root end
@@ -126,6 +132,15 @@ G.ApplyMovement=function() end
 local target={Id="D1N1",District=1,Model={PrimaryPart={Position=vec(0,3,3)}},Origin=vec(0,3,3),Available=0,Reserved=nil,Suspicion=0}
 G.NPC={Targets={D1N1=target},Guards={}}
 for _,p in {stateA,stateB} do G.State[p]={Loot={},Heat=0,LastTrouble=0,Immunity=0,Chase=false,VaultCooldown=0,Tokens=16,TokenTime=now} end
+local function finishProcessing()
+ B:Act(stateA,"Press")
+ if profile.Processing.Ends>0 then time=profile.Processing.Ends+1 end
+ B:Refresh(profile)
+ B:Act(stateA,"Rinse")
+ if profile.Processing.Ends>0 then time=profile.Processing.Ends+1 end
+ B:Refresh(profile)
+ B:Act(stateA,"Claim")
+end
 G:Begin(stateA,"D1N1")
 check(G.State[stateA].Attempt~=nil,"eligible player reserves target")
 G:Begin(stateB,"D1N1")
@@ -139,6 +154,7 @@ check(profile.Starter==2,"first success advances onboarding")
 G:Resolve(stateA,a.Token)
 equal(#G.State[stateA].Loot,1,"replayed token cannot duplicate reward")
 G:Bank(stateA)
+finishProcessing()
 equal(#G.State[stateA].Loot,0,"bank clears pockets")
 check(profile.Cash>0,"bank pays Cash")
 equal(profile.Starter,3,"bank advances onboarding")
@@ -188,9 +204,11 @@ equal(profile.Cash,savedCash,"death penalty preserves saved Cash")
 profile.Starter=7; profile.StarterProgress=0
 s.Loot={}; for _=1,5 do table.insert(s.Loot,{Id="D1R1",Variant="Standard"}) end
 G:Bank(stateA)
+finishProcessing()
 equal(profile.StarterProgress,0,"caught trip does not count for clean mission")
 for _=1,5 do table.insert(s.Loot,{Id="D1R1",Variant="Standard"}) end
 G:Bank(stateA)
+finishProcessing()
 equal(profile.Starter,8,"clean trip completes clean objective")
 M.rotate(profile)
 local daily=M.definitions(profile)[1]
@@ -240,7 +258,7 @@ local migrated=player(23)
 check(D:Load(migrated),"version-one save migrates without a reset")
 local migratedProfile=D:Get(migrated)
 equal(migratedProfile.Cash,777,"migration preserves currency")
-equal(migratedProfile.Schema,2,"migration updates schema")
+equal(migratedProfile.Schema,3,"migration updates schema")
 equal(migratedProfile.Hideout.Network,0,"migration adds facility defaults")
 equal(migratedProfile.Upgrades.Gadgets,0,"migration adds new upgrade defaults")
 check(next(migratedProfile.Secrets)==nil,"migration adds empty city journal")
@@ -354,7 +372,7 @@ equal(s.GadgetCharges,0,"New Identity clears gadget charges")
 -- Actual guard state machine: a decoy only releases its owner's pursuit.
 local S=load("SecurityService"); S:Init(G)
 G.World.InsideSafe=function() return false end
-stateA.Character={FindFirstChild=function() return root end}
+stateA.Character={FindFirstChild=function() return root end,FindFirstChildOfClass=function() return nil end}
 local guard={Model={PrimaryPart={Position=vec(0,3,30),CFrame={LookVector={Dot=function() return 1 end}},Status={Text={}}}},District=1,Target=stateA,LastSeen=now,Phase=0,Origin=vec(0,3,30),LastPath=0}
 G.NPC.Guards={guard}; s.Heat=90; s.Immunity=0; s.Chase=true; s.DecoyUntil=now+3
 G.State[stateB].Heat=0; G.State[stateB].Immunity=0
@@ -377,4 +395,109 @@ G.World.Secrets.S1_2=vec(100,3,3)
 G:Secret(stateA,"S1_2")
 equal(profile.Cash,beforeFar,"distant secret cannot pay a reward")
 check(not profile.Secrets.S1_2,"distant secret cannot be discovered remotely")
+-- After Hours: fictional processing pipeline, persistence, contracts and van transactions.
+profile.Cash=1000; profile.Starter=8; profile.Reputation=1000; s.Loot={{Id="D1R1",Variant="Standard",Quality=1}}; s.CaughtTrip=false
+local beforeDeposit=profile.Cash
+G:Bank(stateA)
+equal(profile.Cash,beforeDeposit,"deposit secures cards but never pays instant Cash")
+equal(profile.Processing.PendingCards,1,"deposit queues exactly one card")
+check(profile.Processing.PendingValue>0,"deposit records server-valued inputs")
+equal(#s.Loot,0,"deposit removes pocket cards atomically")
+B:Act(stateA,"Claim")
+equal(profile.Cash,beforeDeposit,"claim before processing cannot pay")
+B:Act(stateA,"Rinse")
+equal(profile.Processing.Stage,"Idle","rinse cannot bypass the press")
+B:Act(stateA,"Press")
+equal(profile.Processing.Stage,"Pressing","press starts the batch")
+local batch=profile.Processing.Value
+B:Act(stateA,"Press")
+equal(profile.Processing.Value,batch,"repeated press cannot duplicate or replace batch")
+B:Act(stateA,"Claim")
+equal(profile.Cash,beforeDeposit,"running batch cannot be collected early")
+time=profile.Processing.Ends+1; B:Refresh(profile)
+equal(profile.Processing.Stage,"Pressed","offline elapsed timer advances to pressed state")
+B:Act(stateA,"Rinse"); equal(profile.Processing.Stage,"Rinsing","rinse starts only after press completes")
+time=profile.Processing.Ends+1; B:Refresh(profile)
+equal(profile.Processing.Stage,"Ready","rinse completion makes payout ready")
+B:Act(stateA,"Claim")
+equal(profile.Cash,beforeDeposit+batch,"finished processing pays exact locked batch value")
+B:Act(stateA,"Claim")
+equal(profile.Cash,beforeDeposit+batch,"processing payout cannot be claimed twice")
+equal(profile.Processing.Stage,"Idle","payout clears the completed batch")
+profile.Processing.PendingCards=C.Processing.QueueCapacity; s.Loot={{Id="D1R1",Variant="Standard"}}
+G:Bank(stateA)
+equal(#s.Loot,1,"full processing queue preserves carried cards")
+profile.Processing.PendingCards=0; profile.Processing.PendingValue=0; profile.Processing.PendingClean=0
+profile.Van.Owned=false
+VService:Act(stateA,"Purchase")
+check(profile.Van.Owned,"van purchase grants ownership")
+local afterVan=profile.Cash
+VService:Act(stateA,"Purchase")
+equal(profile.Cash,afterVan,"van cannot charge twice for ownership")
+VService.Vehicles[stateA]={Model={StashHandle={Position=root.Position}}}
+s.Loot={{Id="D1R1",Variant="Standard"},{Id="D1R1",Variant="Standard"}}
+VService:Act(stateA,"Store")
+equal(#s.Loot,0,"van storage removes exactly the transferred pocket cards")
+equal(#profile.Van.Stash,2,"van storage receives cards")
+VService:Act(stateA,"Store")
+equal(#profile.Van.Stash,2,"repeated storage cannot duplicate cards")
+VService:Act(stateA,"Withdraw")
+equal(#s.Loot,2,"withdraw returns stored cards")
+equal(#profile.Van.Stash,0,"withdraw removes stored copies")
+local cap=VService:Capacity(profile)
+for _=1,cap do table.insert(profile.Van.Stash,{Id="D1R1",Variant="Standard"}) end
+VService:Act(stateA,"Store")
+equal(#s.Loot,2,"full van preserves pocket cards")
+equal(#profile.Van.Stash,cap,"van capacity is enforced")
+profile.Van.Stash={}; VService:Act(stateA,"Store"); VService:Act(stateA,"Deposit")
+equal(#profile.Van.Stash,0,"dock deposit clears stored cards")
+equal(profile.Processing.PendingCards,2,"dock deposit creates processing inputs")
+profile.Contracts.Active=""; profile.Contracts.Claimed={}; profile.Contracts.Progress={}
+check(M.accept(profile,"mara_1"),"eligible story contract can be accepted")
+check(not M.accept(profile,"jax_1"),"only one story contract may be active")
+M.event(profile,"collect",3)
+check(M.claimContract(profile,"mara_1"),"completed story contract can be claimed")
+check(not M.claimContract(profile,"mara_1"),"story contract reward is one-time")
+check(M.accept(profile,"mara_2"),"next story contract requires and accepts previous completion")
+profile.Contracts.Active=""
+check(not M.accept(profile,"iris_2"),"story prerequisites cannot be skipped")
+local easy=R.challenge(1,1,0,0,C.Approaches.Careful,C.TargetStyles.Daydreamer,C)
+local hard=R.challenge(5,3,0,0,C.Approaches.Bold,C.TargetStyles.VIP,C)
+check(hard.Width<easy.Width,"later district challenge has a smaller window")
+check(hard.Duration<easy.Duration,"later district challenge is faster")
+check(hard.Drift>easy.Drift,"later challenges drift more")
+local geared=R.challenge(5,3,8,8,C.Approaches.Careful,C.TargetStyles.VIP,C)
+check(geared.Width<easy.Width,"maximum Focus does not trivialize endgame against starter")
+check(hard.Width>=0.085 and geared.Width<=0.36,"timing difficulty bounds enforced")
+check(math.abs(R.speedTowards(0,24,7,0.1)-0.7)<0.00001,"traffic accelerates gradually")
+check(R.speedTowards(24,0,18,0.1)>0,"normal traffic braking is gradual")
+check(R.processSeconds("Press",6,C)<R.processSeconds("Press",0,C),"press upgrade reduces processing time")
+check(profile.Processing.PendingCards>0,"queued batch exists before capture")
+s.Immunity=0; s.Loot={{Id="D1R1",Variant="Standard"}}; local protected=profile.Processing.PendingValue
+G:Capture(stateA)
+equal(profile.Processing.PendingValue,protected,"capture cannot debit stored processing inputs")
+profile.Cash=1000; profile.Reputation=1000
+local cashBeforeStyle=profile.Cash
+Cos:Act(stateA,"Buy","canvas_mint")
+check(profile.Cosmetics.Owned.canvas_mint,"cosmetic purchase grants ownership")
+equal(profile.Cash,cashBeforeStyle-C.Cosmetics.canvas_mint.Price,"cosmetic purchase charges exact catalog price")
+Cos:Act(stateA,"Buy","canvas_mint")
+equal(profile.Cash,cashBeforeStyle-C.Cosmetics.canvas_mint.Price,"owned cosmetics cannot charge twice")
+Cos:Act(stateA,"Equip","night_beanie")
+check(profile.Cosmetics.Equipped.Head=="","unowned cosmetic cannot be equipped")
+Cos:Act(stateA,"Equip","canvas_mint")
+equal(profile.Cosmetics.Equipped.Head,"canvas_mint","wardrobe equips an owned item into its defined slot")
+check(Cos.Applied==stateA,"equipping actually reapplies the character appearance")
+Cos:Act(stateA,"Unequip","Head")
+equal(profile.Cosmetics.Equipped.Head,"","unequipping clears only the requested slot")
+profile.Cash=0
+Cos:Act(stateA,"Buy","night_beanie")
+check(not profile.Cosmetics.Owned.night_beanie,"unaffordable cosmetic denied")
+equal(profile.Cash,0,"cosmetic purchase cannot make Cash negative")
+local styleOwned=profile.Cosmetics.Owned
+profile.Cash=C.Prestige.Cash; profile.Reputation=C.Prestige.Reputation; profile.Starter=8
+for i=1,5 do profile.Districts[tostring(i)]=true end
+s.Prestige={Token="style-identity",Ends=now+30}
+G:Prestige(stateA,"style-identity")
+check(profile.Cosmetics.Owned==styleOwned and profile.Cosmetics.Owned.canvas_mint,"New Identity preserves cosmetic ownership")
 print("PASS: "..passed.." domain assertions (mocked engine boundaries; not Studio playtesting)")

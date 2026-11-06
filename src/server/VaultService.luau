@@ -5,7 +5,7 @@ function V:Init(gameService: any) self.Game=gameService end
 function V:Start(player: Player)
  local G=self.Game; local p=G.Data:Get(player); local s=G.State[player]; local root=G:Root(player)
  if not p or not s or not root or s.Vault then return end
- if (root.Position-Vector3.new(-63,3,37)).Magnitude>14 then G:Notify(player,"Use the purple Vault Run kiosk in Starter Street."); return end
+ if (root.Position-Vector3.new(C.City.HideoutX+8,3,C.City.HideoutZ-20)).Magnitude>14 then G:Notify(player,"Use the purple Vault Run kiosk in Starter Street."); return end
  if p.Reputation<C.Vault.Rep then G:Notify(player,"Vault Run needs "..C.Vault.Rep.." Reputation."); return end
  if s.VaultCooldown>os.clock() then G:Notify(player,"Vault cooling down. Try again shortly."); return end
  if #s.Loot>0 then G:Notify(player,"Bank your carried cards before entering the vault."); return end

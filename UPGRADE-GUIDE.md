@@ -1,75 +1,56 @@
-# Equipment, tricks, and clubhouse progression
+# After Hours progression and controls
+
+## The complete money loop
+
+Scout a fictional citizen → choose Careful/Bold → pass every timing stage → pocket a card → secure cards at the alley intake or in your van → deposit at the workshop → press imaginary ink tokens → run a cartoon rinse → claim in-game Cash → buy gear, cosmetics, home improvements and district access.
+
+**Depositing does not pay instant Cash.** Queue value/cards, active batch value/cards, stage and timer are saved. A batch is Pressing → Pressed → Rinsing → Ready. Pressed and Ready wait for you to use the next station. Completed timers refresh after rejoin. Claims clear the finished batch before awarding anything, so replaying a claim cannot duplicate Cash. Up to 200 cards can wait in the intake; active batches are separate.
+
+The base queue value is `floor(card base × variant × assigned quality × intake/Terminal bonus × gallery bonus × identity bonus)` per card. Batch payout is `floor(queue value × (1 + Yield level × 0.04))`, locked when pressing starts. Fixed quest rewards use their own values. This is an entirely imaginary arcade conversion process, not a real financial technique.
 
 ## Equipment
 
-Equipment is purchased with Cash in a clubhouse. Reputation thresholds unlock later tiers but are never spent. For levels 1–8 the thresholds are **0, 0, 20, 50, 100, 200, 400, 650 REP**. Tracks with lower caps stop earlier. Each purchase costs `floor(base cost × growth ^ current level)`.
+Cash buys equipment in a safe workshop. Reputation is checked but kept. Tier requirements for levels 1–8 are 0, 0, 20, 50, 100, 200, 400, 650 REP. Cost is `floor(base × growth ^ current level)`.
 
-| Track | Base / growth / cap | Actual effect |
+| Track | Base / growth / cap | Effect |
 | --- | --- | --- |
-| Sleight | $40 / 1.85 / 8 | Each stage is 4% shorter per level, up to 32%; rating unlocks tougher district targets. |
-| Focus | $55 / 1.9 / 8 | Adds 1.2 percentage points to the base success-zone width per level, before approach/style modifiers. |
-| Capacity | $60 / 1.9 / 8 | Five starting card slots, +2 per level, maximum 21. |
-| Sneakers | $65 / 1.9 / 6 | Movement starts at 16, +0.8 per level, maximum 20.8. |
-| Disguise | $50 / 1.85 / 8 | Reduces lingering suspicion growth by 7% per level, maximum 56%. It does not make guards ignore high Heat. |
-| Hideout Terminal | $75 / 1.95 / 8 | +6% card banking value per level, maximum +48%. |
-| Composure | $90 / 1.9 / 6 | Reduces successful/failed interaction Heat by 4% per level, maximum 24%. |
-| Gadgets | $125 / 2.1 / 4 | Unlocks confetti decoys. Base charges = 1 + floor(level / 2); cooldown = 28 − 3 × level seconds. Restock at the supply bench. |
-| Appraisal | $110 / 1.95 / 6 | Adds 4% rarity luck per level. Luck increasingly favors higher tiers instead of raising all non-Common weights equally. |
+| Sleight | 40 / 1.85 / 8 | 2.5% shorter stages per level; rating opens tougher targets. |
+| Focus | 55 / 1.9 / 8 | +0.9 percentage points of base success width per level, before approach/style modifiers. |
+| Capacity | 60 / 1.9 / 8 | Five pockets +2 per level, maximum 21. |
+| Sneakers | 65 / 1.9 / 6 | 16 speed +0.8 per level, capped at 20.8. |
+| Disguise | 50 / 1.85 / 8 | 7% slower lingering suspicion per level. |
+| Intake/Terminal | 75 / 1.95 / 8 | +6% intake value per level. |
+| Composure | 90 / 1.9 / 6 | 4% less interaction Heat per level. |
+| Gadgets | 125 / 2.1 / 4 | Decoys: 1 + floor(level/2) base charges; cooldown 28 − 3 × level seconds. |
+| Appraisal | 110 / 1.95 / 6 | +4% rarity luck per level, with increasing benefit to higher rarities. |
+| Press | 100 / 1.85 / 6 | 7% less press time per level. |
+| Rinse | 120 / 1.85 / 6 | 7% less rinse time per level. |
+| Yield | 180 / 1.95 / 6 | +4% batch payout per level, locked at batch start. |
+| Van Slots | 160 / 1.9 / 6 | Eight storage slots +4 per level, maximum 32. |
+| Engine | 200 / 1.9 / 4 | 18 van cruising speed +2 per level, maximum 26; rain reduces it. |
 
-Ranks are DIY, Streetwise, Professional, and Legendary, advancing every two levels. Ranks label progression; their benefits are the explicit level effects, not hidden extra multipliers.
+Press time starts at 18 seconds and rinse at 14; upgraded time is `ceil(base × (1 − level × 0.07))` with a three-second lower bound. At level 6 the stages take 11 and 9 seconds.
 
-Early choices: Sleight opens access, Focus makes timing more forgiving, Capacity increases exposure before banking, Terminal improves secured income, and Composure/Disguise manage different sources of risk. Gadgets provides an active escape option; it needs restocking and does not replace cover or safe rooms.
+## Harder timing that scales
 
-## Target choices and staged timing
+The first onboarding trick remains forgiving. Otherwise base duration is `max(0.95, (2.4 − district × 0.16) × (1 − Sleight × 0.025) × approach duration)`.
 
-Scouting shows the personality, district, stage count, equipment requirement, suspicion, and possible rarities. A preview pauses the NPC for eight seconds without reserving its reward. Only beginning a valid attempt reserves it. Another player can claim an idle target while you are still reading its preview.
+Zone width is `clamp((0.25 − district × 0.024 + Focus × 0.009) × approach width × personality width, 0.085, 0.36)`. Later districts/stages increase drift. Even maximum Focus keeps the endgame VIP window smaller than the starter Daydreamer window.
 
-| Personality | Stages in districts 1–3 | Other properties |
-| --- | --- | --- |
-| Daydreamer | 1 | Wider zone, ordinary value/luck, slower walk. |
-| Commuter | 2 | Ordinary zone, 1.05 value and 1.1 rarity luck. |
-| Card Collector | 2 | Slightly narrower zone, 1.1 value and 1.5 rarity luck. |
-| Fancy VIP | 3 | Narrower zone, 1.25 value and 1.35 rarity luck. |
+Daydreamers start at one stage, Commuters/Collectors two, VIPs three. Luxury/Neon add one, capped at three. Patterns are forward, reverse, bounce. Later zones drift; gold-center hits are Perfect. Every stage must clear before one card is granted. Each stage has a new server token, and the server validates timing from receipt time with capped ping compensation plus ownership/range/line-of-sight/capacity checks.
 
-Luxury and Neon add one stage, capped at three. The first onboarding success uses a single stage to keep the introduction short.
+Careful gives 15% wider windows, 12% longer stages and 20% less Heat. Bold gives 15% narrower windows, 10% shorter stages, 40% more Heat, 20% value and extra rarity luck. Five consecutive clears give up to 12% quality value; misses/cancellation/capture/death break the streak. Value quality is stored on the card when awarded. Canceling a live trick adds 10 Heat. Practice never grants rewards, Reputation or streak progress.
 
-- **Careful:** 15% wider window, 12% longer stage, 20% less interaction Heat. No extra value/luck multiplier.
-- **Bold:** 15% narrower window, 10% shorter stage, 40% more interaction Heat, 20% additional card value, 1.15 rarity-luck multiplier.
-- Stage 1 sweeps forward. Stage 2 sweeps in reverse. Stage 3 bounces out and back. Later stages drift the mint success zone.
-- Mint gives Good; its gold center gives Perfect. Every stage must pass before one card is granted. Perfect on all stages applies an additional 1.3 rarity-luck multiplier.
-- Tokens change on every stage. The server computes positions from its start time and validates receipt time, target reservation, reach, capacity, line of sight, and district access. It never accepts a client result or reward amount.
-- A five-trick streak gives up to 12% quality value: `1 + 0.03 × (streak − 1)`. Misses, live cancellations, capture, or death reset the streak. Canceled live tricks add 10 Heat; practice cancellations do not.
-- Quality is assigned to the actual card when awarded, so later banking never retroactively changes its approach/streak bonus.
+## Home, van, weather and cosmetics
 
-For a rarity `r` from 2 to 6, its weight is multiplied by `1 + (luck − 1) × (1 + (r − 2) × 0.45)`. Common is unchanged; zero weights stay zero. Final probabilities depend on all weights, so a 15% luck multiplier is not a guaranteed 15-percentage-point change in drop chance.
+Home Lounge/Workshop/Gallery/Network remain three-level permanent tracks. Lounge adds 4 safe-zone recovery/second per level; Workshop adds one supply charge per level; Gallery adds 2% intake value per level after five discoveries; Network enables empty-pocket, cool-player courier travel. Courier fees and minimum levels appear in Districts. A decoy removes 12 Heat and suppresses its owner's pursuit for 3.5 seconds; a hot player may be seen again afterwards.
 
-## Permanent clubhouse improvements
+The van is $650 / 30 REP at a garage. It is physically drivable, with validated occupant/input rules, steering/acceleration limits, and a 0.6-second input watchdog. Its saved stash is private and protected from capture. Rear-door transfers obey both van and pocket capacity. Unloading into processing requires the van rear and player to be close to an external workshop intake. Summoning requires a garage and cooldown; occupied vans cannot be remotely respawned. Crossing locked/out-of-bounds districts returns the vehicle to Starter. Driving and the Plaza delivery bay support Jax's story chain.
 
-These are separate from normal equipment and **survive New Identity**. Buy them in the Hideout menu while in a safe room. Each has three levels; the Reputation requirement is the listed base multiplied by the next level.
+The day/night cycle lasts 24 minutes. Weather duration varies roughly 150–270 seconds, transitions blend over 24 seconds, and weighted next states avoid abrupt Clear→heavy Rain jumps. Rain slows vehicles to 80%; Fog reduces guard acquisition range. Local rain and vegetation motion respect settings. Indoor lights stay usable independently of the street-light schedule.
 
-| Room | Base / growth / base REP | Effect |
-| --- | --- | --- |
-| Recovery Lounge | $90 / 2.6 / 0 | Adds 4 Heat recovery per second per level in safe rooms. Maximum recovery becomes 26 Heat/second including the base 14. |
-| Gadget Workshop | $160 / 2.6 / 20 | Adds one supply-bench decoy charge per level. Gadgets must be unlocked; maximum combined capacity is six. |
-| Collector Gallery | $140 / 2.6 / 20 | After five card/variant discoveries, adds 2% banking value per level, maximum 6%. Displays up to nine personal discovered cards. |
-| Courier Network | $220 / 2.8 / 30 | Level 1 serves Starter, Plaza, and Business; level 2 reaches every unlocked district; level 3 further reduces fares. |
+Ten cosmetics have fixed visible Cash/REP prices and no random crates or gameplay benefits. Purchase at an Outfitters register, then equip at a workshop wardrobe. One item per Head/Face/Back/Outfit slot; remove restores the original avatar layers/headwear. Ownership and equipped styles are saved and survive New Identity.
 
-Courier fare = `floor(20 × (destination district − 1) × (1 − network level × 0.2))`. You must use a route board, own the destination unlock, have empty pockets, be out of a chase, and be below 20 Heat. Returning to Starter is free after the network is unlocked. Travel cannot be used to extract unbanked cards.
+## New Identity
 
-The practice arcade has three stages and gives no loot, Cash, Reputation, Heat, streak, or career-attempt rewards. The supply bench refills charges for free but does not reset a running gadget cooldown.
-
-A decoy removes 12 Heat and suppresses guards' pursuit of its owner for 3.5 seconds. Other players' states are unchanged. A still-hot player can be detected again afterwards. Use the opening to get behind cover.
-
-## Banking and persistence
-
-Each banked card is worth:
-
-`floor(base card value × variant × quality × terminal bonus × gallery bonus × identity bonus)`
-
-Variants: Standard ×1, Foil ×1.5, Glitched ×2.2, Golden ×3.5. Identity bonus is 5% per identity capped at 50%. Fixed mission/Vault rewards use their own configured amounts.
-
-New Identity resets Cash, Reputation, normal equipment, district access, carried cards, Heat, live streak, decoy charges, and starter jobs. It keeps card discoveries, milestone claims, daily progress/claims, settings, identity badges, clubhouse levels, discovered city secrets, and career stats.
-
-Fifteen city souvenirs pay once per player. Each gives `35 + 25 × district` Cash and `4 + district` Reputation. The Hideout journal gives clues. Their rewards are independent of card timing and do not count as stolen cards.
-
-All formulas and values are centralized in Config and Rules. Balance changes should preserve the bounded movement speed and per-phase server validation.
+Requires all districts, completed starter jobs, $100,000 and 1,000 REP. Resets Cash/REP, normal gear, districts, pockets, van stash, processing queue/batch, Heat/streak/decoy charges and starter jobs. Keeps van ownership, home upgrades, cosmetics/outfit, collection, souvenirs, career stats, story contract and daily progress/claims, settings and identity badges. Awards one identity badge and +5% permanent card value per identity, capped at +50%.

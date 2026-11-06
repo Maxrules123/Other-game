@@ -1,34 +1,16 @@
-# Implementation checklist
+# After Hours checklist
 
-- [x] Milestone 1: fresh Rojo architecture and complete starter-loop implementation.
-  - Present: target claims, server timing, loot, banking, upgrades, objective onboarding.
-  - Verified: domain assertions for transactions and timing; source compilation and Rojo build.
-  - Pending: Roblox Studio end-to-end playtest and first-success timing.
-- [x] Milestone 2: Starter Street geometry, UI, input, Heat, suspicion, and security.
-  - Present: stylized city primitives, props, guard perception/patrol/chase/search/capture, menus, touch/gamepad controls.
-  - Verified: compile/build, capture/Heat/suspicion transaction assertions, code review.
-  - Pending: actual pathfinding, collision, camera, visual polish, device focus and layout tests.
-- [x] Milestone 3: saving, index, starter/daily missions.
-  - Present: versioned profiles, lease-based UpdateAsync, retries, autosave/shutdown, nonpersistent Studio mode, collection variants/milestones, seven starter jobs, daily claims.
-  - Verified: mocked load/rejoin/lease/failure tests; collection and mission reward tests.
-  - Pending: private published Roblox persistence, real throttling/concurrency and UTC-boundary tests.
-- [x] Milestone 4: five connected districts and configured progression.
-  - Present: distinct district geometry, colors/landmarks, targets, security levels, unlock prices/requirements.
-  - Verified: obtainable catalog entries and district transaction assertions; build.
-  - Pending: traverse all districts in Studio and assess economy pacing and sightlines.
-- [x] Milestone 5: Vault Run, prestige, presentation, bounded update loops.
-  - Present: spatially isolated rooms, hazards/card/exit/timer, cleanup/replay, prestige confirmation and capped bonus, reveals, particles, configurable audio slots.
-  - Verified: prestige reset/preserve assertions, compilation/build, code review.
-  - Pending: actual Vault Run playtest, performance profiling, permitted audio assets.
+- [x] Inspect latest Clubhouse branch and repository instructions; work in a new isolated copy.
+- [x] Expand connected blocks, streets, alleys, courtyards, shop details and hidden furnished workshops.
+- [x] Create original reusable model geometry and a nine-mesh/fifteen-texture source pack with import hooks and normalizer.
+- [x] Implement traffic, physical owner-controlled van, saved storage, docks and delivery objective.
+- [x] Add R15 citizen path with detailed fallback, unique targets, shop/laundry/bus/phone routines and weather props.
+- [x] Implement blended dynamic weather, day/night, street/window/interior/vehicle lighting, rain and vegetation motion settings.
+- [x] Implement persistent fictional processing pipeline and schema-3 reconciliation.
+- [x] Rebuild the GUI, upgrade grouping/effects, timing difficulty, story contracts and journal.
+- [x] Add outfitters, wardrobe, 3D previews and server-validated persistent cosmetics.
+- [x] Compile/build and execute available gameplay, model/environment, UI and asset checks.
+- [ ] Actual Roblox Studio graphics, vehicle/seat/rig physics, pathfinding, streaming, live DataStore and device playtests.
+- [ ] Import/publish optional mesh and PBR sources through the owner's Studio account; add permitted audio IDs.
 
-**Status:** implemented source and build artifacts delivered; runtime acceptance is pending Studio validation. Checklist ticks mean implementation exists, not that unperformed Roblox tests passed.
-
-
-## Clubhouse Update implementation
-
-- [x] Rebuilt connected blocks, fifteen open-entry furnished shops, district courtyards, alleys, back-lane props, five safe rooms, fifteen secrets, 45 NPC routes and fifteen guards.
-- [x] Added scouting/personality previews, careful/bold approaches, phased server scoring, fresh tokens, drift/reverse/bounce patterns, full-clear rewards and streak quality.
-- [x] Added three equipment tracks, tier previews/requirements, active decoys, permanent home upgrades, practice, travel, personal decorations, journal and career stats.
-- [x] Added backward-compatible schema-2 defaults and tests for permanent progression through prestige.
-- [x] Compiled all nineteen sources and built updated place/package. Passed 183 domain and 362 city-generation assertions using engine mocks.
-- [ ] Roblox Studio visual, collision, pathfinding, multiplayer/device and live persistence checks remain pending. See TESTING.md.
+Implementation exists for checked items. Passing mocked checks does not mark unperformed Studio acceptance tests as passed. Publication/download status is reported separately in chat.

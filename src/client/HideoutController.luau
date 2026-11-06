@@ -18,6 +18,7 @@ function H:Update(packet: any)
  self.Signature=signature
  if self.Folder then self.Folder:Destroy() end
  local folder=Instance.new("Folder"); folder.Name="MyClubhouseDecor"; folder.Parent=workspace; self.Folder=folder
+ local shift=Vector3.new(C.City.HideoutX+45,0,C.City.HideoutZ-60)
  local banner=prop(folder,"Personal clubhouse banner",Vector3.new(-45,8,37.3),Vector3.new(13,1.5,0.08),C.Palette.Panel)
  words(banner,"IDENTITY "..p.Identities.." / "..#discoveries.." DISCOVERIES",C.Palette.Gold)
  if p.Hideout.Lounge>0 then
@@ -46,6 +47,7 @@ function H:Update(packet: any)
   local map=prop(folder,"Courier route map",Vector3.new(-26,7.7,80.9),Vector3.new(12,2,0.12),C.Palette.Panel)
   words(map,"COURIER NETWORK / LEVEL "..p.Hideout.Network.."\nSTARTER → PLAZA → BUSINESS → HEIGHTS → NEON",C.Palette.Mint)
  end
+ for _,item in folder:GetDescendants() do if item:IsA("BasePart") then item.CFrame+=shift end end
 end
 function H:RefreshSecrets(profile: any)
  local city=workspace:FindFirstChild("CardCity"); local secrets=city and city:FindFirstChild("Secrets")

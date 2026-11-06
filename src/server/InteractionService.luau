@@ -28,10 +28,10 @@ function T:SendStage(player: Player)
  local style=C.TargetStyles[a.Style]
  a.Token=HttpService:GenerateGUID(false)
  a.Start=workspace:GetServerTimeNow()+(if a.Stage==1 then C.InteractionLead else C.Stealing.StageLead)
- a.Duration=(C.Timing.BaseDuration-a.District*C.Timing.DistrictSpeed)*(1-p.Upgrades.Sleight*C.Timing.SleightSpeed)*approach.Duration
- a.Width=math.clamp((C.Timing.BaseWidth-a.District*C.Timing.DistrictWidth+p.Upgrades.Focus*C.Timing.FocusWidth)*approach.Width*style.Width,0.12,0.48)
- a.Pattern=({"Sweep","Reverse","Bounce"})[a.Stage]
- a.Drift=if a.Stage>1 then C.Stealing.Drift else 0
+ local challenge=R.challenge(a.District,a.Stage,p.Upgrades.Sleight,p.Upgrades.Focus,approach,style,C)
+ a.Duration=challenge.Duration; a.Width=challenge.Width; a.Pattern=challenge.Pattern
+ a.Drift=if a.Stage>1 or a.District>2 then challenge.Drift else 0
+ if p.Starter==1 and not a.Practice then a.Duration=2.4; a.Width=0.29; a.Drift=0 end
  a.Center=Random.new():NextNumber(C.Timing.MinCenter,C.Timing.MaxCenter)
  local packet=table.clone(a); packet.Name=if a.Practice then "PRACTICE / NO LOOT OR HEAT" else C.Districts[a.District].Name
  G.Remote:FireClient(player,"Timing",packet)
@@ -96,7 +96,7 @@ function T:Resolve(player: Player,token: string,expired: boolean?)
   if perfect then p.Stats.Perfects+=1 end
   p.Stats.BestCombo=math.max(p.Stats.BestCombo,s.Combo)
   G:Heat(player,C.Heat.Success*heatScale)
-  G:Event(player,"success",1); G:Event(player,"collect",1); G:Event(player,"rarity",C.Cards[loot.Id].Rarity)
+  G:Event(player,"success",1); G:Event(player,"collect",1); G:Event(player,"collectD"..target.District,1); if perfect then G:Event(player,"perfect",1) end; G:Event(player,"rarity",C.Cards[loot.Id].Rarity)
   G.Remote:FireClient(player,"Reveal",{Loot=loot,Grade=if perfect then "Perfect" else "Good",Milestone=milestone,Combo=s.Combo})
  end
  G:Snapshot(player)

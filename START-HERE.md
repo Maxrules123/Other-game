@@ -1,72 +1,54 @@
-# Get the game running on your new PC
+# Play After Hours on your PC
 
-This is a fresh project because the supplied workspace had no existing repository or Rojo setup. It contains the Clubhouse Update implementation, but it still needs the Roblox Studio checks in TESTING.md before release.
+You already installed Roblox Studio and Rojo earlier. To try this version, you do not need to reinstall them.
 
-## Fastest way: open the included place
+1. Download the **After Hours branch ZIP** from GitHub and choose **Extract All**.
+2. Open Roblox Studio → **File → Open from File** → choose the extracted **CreditCardStealer.rbxl**.
+3. Press **Play**. You begin in the hidden alley workshop. The city generates when testing starts.
+4. Walk out of the workshop, turn left through the side alley beside the closed repair shop, then approach a citizen on the avenue.
+5. Use **E / controller X / tap** to scout. Choose Careful or Bold. Use **Space / A / LOCK IN** in each timing stage.
+6. Return with cards. Use the intake, ink press, cartoon rinse, then Cash printer. Operations in the City Desk shows the job and explains every stage.
+7. Use the City Desk button (or Tab / Y) for gear, quests, van, outfits, wardrobe and settings. Shops and machines require actual proximity, so close the menu and walk to them when prompted.
 
-1. Install Roblox Studio from https://create.roblox.com/ and sign into your Roblox account.
-2. Extract the delivery ZIP. Open **CreditCardStealer.rbxl** in Studio using **File → Open from File**. The `.rbxlx` is an equivalent XML copy; open either one.
-3. Press **Play**. The city is generated when the server starts. Seeing an empty edit view before Play is expected.
-4. Walk to a tourist across from the mint hideout. Use **E**, the controller **X** button, or the touch prompt.
-5. Stop the moving timing marker in the mint zone with **Space**, **A**, or the large **STOP** button. A gold-center hit improves rarity odds.
-6. Choose **Careful** in the scout preview; later targets have up to three stages. Bring cards to the mint **Hideout Terminal**, bank them, then buy **Sleight** at the equipment kiosk. The objective banner guides the rest.
-7. Stop the test before editing scripts. Use **File → Publish to Roblox** when you want to save the experience to your account. Publishing is your action; this delivery has not published anything.
+The native build is playable immediately. The custom OBJ/PBR pack is delivered separately as `assets/AfterHours-Art.zip`; see **ASSET-IMPORT.md** for the Studio import/account step. Those custom mesh/image assets have not already been uploaded to Roblox. Native models/materials and R15 citizens/fallback work while ArtAssets is empty.
 
-**Studio uses temporary test profiles by default.** Leaving and rejoining a Studio test resets those test profiles. Published servers use the production DataStore automatically.
+## Things to try
 
-## Set up the source workflow with Rojo
+- Sit on the workshop sofa; inspect its kitchen, desk, lockers, wardrobe and warm lighting.
+- Buy gear at the bench. Press/Rinse/Yield improve the processing operation; other tracks affect field timing, risk and capacity.
+- Buy a van at an alley garage for $650 and 30 REP. Summon it, use the driver-seat prompt, drive with WASD/controller/touch thumbstick and jump to exit. Store cards at the rear; park at the external west-wall dock to unload them into processing.
+- Talk to Mara/Jax/Wren/Iris for story contracts. Visit Outfitters for cosmetics and a workshop wardrobe to wear them. Clothes are appearance-only and saved.
+- Explore residential/back lanes and district courtyards; watch traffic, changing light/weather, citizen stops and the fifteen souvenirs.
+- Keep the Output window open and use TESTING.md for actual Studio acceptance checks.
 
-The ZIP contains a `CreditCardStealer` source folder. Keep that entire folder together. Source files are the editable source of truth; the bundled place files are snapshots of that source.
+## Saving/settings
 
-1. Install VS Code if you want a code editor: https://code.visualstudio.com/
-2. Install Rojo **7.7.1**, using the Windows release from https://github.com/rojo-rbx/rojo/releases/tag/v7.7.1 and add its extracted folder to your PATH. Alternatively install Rokit and run `rokit install` in the source folder to use the pinned `rokit.toml`.
-3. Open a terminal in the **CreditCardStealer** source folder. Check `rojo --version`.
-4. Close Studio, run `rojo plugin install`, then reopen Studio. This installs the matching local Rojo plugin.
-5. Open a **new empty place** or the bundled place and run:
+Studio uses temporary test profiles by default, so a new Studio session starts fresh. Published servers use the production DataStore. Set published max players to 12. There are no runtime HTTP services, API keys, or invented asset IDs.
 
-   ```powershell
-   rojo serve default.project.json
-   ```
+Test persistence in a private published test experience first. If testing real DataStores *inside Studio*, use a separate test experience and development-only Config.StoreName, set StudioTestData=false, publish, then enable Studio access to API services. Restore StudioTestData=true afterwards. Do not use a development test against live production progress.
 
-6. In Studio, open the **Rojo** plugin and connect to `localhost:34872`. Review the sync changes and connect. Use a dedicated place for this project because the project sync manages its mapped scripts and settings.
-7. Keep the terminal running while you edit. Rojo syncs source changes into Studio. Stop and restart the Play test after code changes.
+## Rojo editing workflow
 
-To make a fresh place snapshot without a running sync:
+The GitHub ZIP has source at its root. Open the folder containing **default.project.json** in VS Code. If using the separate game bundle, the source is inside its **CreditCardStealer/** folder.
+
+Run Rojo from a terminal in that folder:
+
+```powershell
+rojo serve default.project.json
+```
+
+If rojo.exe is not on PATH, copy the executable into the project folder and use:
+
+```powershell
+.\rojo.exe serve default.project.json
+```
+
+In Studio's Rojo plugin, connect to **localhost:34872**. Review the sync and connect to this project's dedicated place. Keep the terminal open; stop/restart Play after code changes. ArtAssets preserves your manually imported models when syncing.
+
+To build another snapshot:
 
 ```powershell
 rojo build default.project.json -o CreditCardStealer.rbxl
 ```
 
-Rojo's installation documentation: https://rojo.space/docs/v7/getting-started/installation/
-
-## Studio and publishing settings
-
-- StreamingEnabled is included in the Rojo project. Client world lookups tolerate missing streamed actors; interface and configuration live outside Workspace.
-- Set the experience's **maximum players to 12** in its publishing settings. There are 12 separate Vault Run rooms per server.
-- No HTTP requests, external packages, paid assets, or API keys are needed by the game.
-- For normal Studio tests, leave `Config.StudioTestData = true`. No DataStore API access is needed.
-- Test production persistence in a private published experience first. Its server sessions save normally without Studio API access.
-- If you intentionally test actual persistence *inside Studio*, use a separate test experience, change `Config.StoreName` to a development-only name, set `StudioTestData = false`, publish the place, and enable **Game Settings → Security → Enable Studio Access to API Services**. Restore the default development mode afterwards. Do not point this test configuration at a live production store.
-- A profile-load failure disconnects the player with a useful message instead of substituting or saving a fresh profile. Concurrent sessions are blocked by a renewable lease.
-
-## Clubhouse Update
-
-The repository ZIP contains the source directly in the extracted root folder. The separate CreditCardStealer.zip bundle contains the source under CreditCardStealer/. Open whichever folder contains default.project.json when using Rojo.
-
-Try the practice arcade, nine equipment tracks, Hideout facility upgrades, supply bench, courier board, and fifteen city secrets. Use **G / R1 / the DECOY button** after buying Gadgets and restocking. Read UPGRADE-GUIDE.md for exact effects. Existing schema-1 saves are migrated automatically; clubhouse improvements, secrets and career stats persist across New Identity.
-
-## Controls
-
-| Action | Keyboard | Gamepad | Touch |
-| --- | --- | --- | --- |
-| Nearby prompt | E | X | Tap Roblox prompt |
-| Stop timing | Space | A | STOP button |
-| Open pockets/menu | Tab or bottom tabs | Y, then focus navigation | Bottom tabs; swipe horizontally |
-| Close menu | X button, Escape where unconsumed | B | X button |
-| Cancel timing | Cancel button | B | Cancel button |
-
-Move with normal Roblox controls. Avoid loitering beside one tourist: suspicion rises. Failures raise Heat faster. At 55 Heat or above, a guard who sees you can chase. Hide behind buildings to break sight, or reach a mint safe zone. Capture or resetting/dying removes half your carried cards, rounded up; banked Cash and permanent upgrades stay safe.
-
-The city runs east from Starter Street through Shopping Plaza, Business District, Luxury Heights, and Neon Financial Center. Unlock districts in the bottom **Districts** tab. Targets require increasing **Sleight** levels, shown before an attempt.
-
-At 90 Reputation, use the purple Starter Street kiosk for Vault Run. Bank your cards first. Cross security beams when they fade, collect the golden card, then reach the exit. Use **Missions → Leave Vault Run** to exit early. Rewards and obstacle checks are on the server.
+Publishing to Roblox is separate from uploading source to GitHub. After Studio validation, use **File → Publish to Roblox** to publish the experience to your Roblox account.

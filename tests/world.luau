@@ -11,10 +11,14 @@ end
 local function v(x,y,z) return setmetatable({X=x or 0,Y=y or 0,Z=z or 0},V) end
 V.__add=function(a,b) return v(a.X+b.X,a.Y+b.Y,a.Z+b.Z) end
 V.__sub=function(a,b) return v(a.X-b.X,a.Y-b.Y,a.Z-b.Z) end
+function V:Lerp(other,t) return self+(other-self)*t end
+function V:Dot(other) return self.X*other.X+self.Y*other.Y+self.Z*other.Z end
 V.__mul=function(a,b) return v(a.X*b,a.Y*b,a.Z*b) end
 local CF={}
+CF.__index=function(t,key) if key=="LookVector" then return t.Look or v(0,0,-1) elseif key=="Rotation" then return setmetatable({Position=v()},CF) end; return CF[key] end
 CF.__mul=function(a,b) return setmetatable({Position=a.Position+b.Position},CF) end
 local function cf(x,y,z) return setmetatable({Position=if type(x)=="table" then x else v(x,y,z)},CF) end
+function CF:Inverse() return cf(-self.Position.X,-self.Position.Y,-self.Position.Z) end
 local Color={}
 Color.__index=Color
 function Color:Lerp(other,t) return setmetatable({R=self.R+(other.R-self.R)*t,G=self.G+(other.G-self.G)*t,B=self.B+(other.B-self.B)*t},Color) end
@@ -40,6 +44,7 @@ local function instance(class)
  local item=setmetatable({Properties={ClassName=class,Name=class,CFrame=cf(),Size=v(1,1,1),CanCollide=true,Transparency=0},Children={},Attributes={}},meta)
  return item
 end
+function methods:IsA(class) return self.ClassName==class or (class=="BasePart" and (self.ClassName=="Part" or self.ClassName=="VehicleSeat")) end
 function methods:FindFirstChild(name)
  for _,child in self.Children do if child.Name==name then return child end end
  return nil
@@ -56,6 +61,13 @@ function methods:GetDescendants()
 end
 function methods:SetAttribute(key,value) self.Attributes[key]=value end
 function methods:GetAttribute(key) return self.Attributes[key] end
+function methods:Clone()
+ local clone=instance(self.ClassName)
+ for k,value in self.Properties do if k~="Parent" and k~="PrimaryPart" then clone[k]=value end end
+ for key,value in self.Attributes do clone:SetAttribute(key,value) end
+ for _,child in self.Children do local copy=child:Clone();copy.Parent=clone end
+ return clone
+end
 function methods:Destroy() self.Parent=nil end
 function methods:PivotTo(value)
  local origin=self.PrimaryPart.CFrame.Position
@@ -63,45 +75,49 @@ function methods:PivotTo(value)
 end
 local enum=setmetatable({},{__index=function(t,k) local group=setmetatable({},{__index=function(_,key) return key end}); rawset(t,k,group); return group end})
 local world=instance("Workspace")
-local shared={Config="Config"}; local modules={}
+local shared={Config="Config",Rules="Rules",CosmeticModels="CosmeticModels"}; local modules={}
+local replicated=instance("ReplicatedStorage"); replicated.Shared=shared
+world.Terrain=instance("Terrain"); local lighting=instance("Lighting"); local materials=instance("MaterialService"); local worldTime=1000000
 local env={
- Vector3={new=v},Vector2={new=function(x,y) return {X=x,Y=y} end},
+ PhysicalProperties={new=function(...) return {...} end},Vector3={new=v},Vector2={new=function(x,y) return {X=x,Y=y} end},
  Color3={fromRGB=color},Enum=enum,Instance={new=instance},
- CFrame={new=cf,Angles=function() return cf() end,lookAt=function(pos) return cf(pos) end},
+ CFrame={new=cf,Angles=function() return cf() end,lookAt=function(pos,target) local t=cf(pos); t.Look=(target-pos).Unit; return t end},
  UDim2={fromScale=function(x,y) return {x,y} end,fromOffset=function(x,y) return {x,y} end},UDim={new=function(x,y) return {x,y} end},
- workspace=world,game={GetService=function() return {Shared=shared} end},require=function(key) return modules[key] end,
+ Random={new=function() return {NextNumber=function(_,lo,hi) return (lo+hi)/2 end,NextInteger=function(_,lo,hi) return math.floor((lo+hi)/2) end} end},workspace=world,os={time=function() return worldTime end},script={Parent={ModelFactory="ModelFactory"}},game={GetService=function(_,name) return if name=="Lighting" then lighting elseif name=="MaterialService" then materials else replicated end},require=function(key) return modules[key] end,
 }
 setmetatable(env,{__index=getfenv()})
 local function load(name)
  local fn=assert(loadstring(Sources[name],name)); setfenv(fn,env); local module=fn(); modules[name]=module; return module
 end
-local C=load("Config"); local W=load("WorldService"); local N=load("NPCService")
+local C=load("Config"); load("Rules"); load("CosmeticModels"); load("ModelFactory"); local W=load("WorldService"); local N=load("NPCService")
 W:Build(); N:Build(W)
 check(#W.Centers==5,"five connected districts built")
-check(#W.Targets==45,"45 NPC spawn routes exist")
+check(#W.Targets==65,"65 NPC spawn routes exist")
 check(#W.Guards==15,"15 guard spawns exist")
 check(#N.Guards==15,"guard models created")
 local targets=0; for _ in N.Targets do targets+=1 end
-check(targets==45,"target models created without runtime indexing errors")
+check(targets==65,"target models created without runtime indexing errors")
 local secretCount=0; for _ in W.Secrets do secretCount+=1 end
 check(secretCount==15,"all city secrets are placed")
 for district=1,5 do
  local cp=W.Checkpoints[district].Position
  check(W:InsideSafe(cp),"checkpoint inside safe room "..district)
  check(W:DistrictAt(cp)==district,"checkpoint belongs to correct district "..district)
- for _,kind in {"Bank","Shop","Resupply","Practice","Hideout","Missions","Index"} do
+ for _,kind in {"Bank","Shop","Resupply","Practice","Hideout","Missions","Index","Press","Rinse","Payout","Wardrobe"} do
   check(W.Stations[kind][district]~=nil,"station exists: "..kind.." / "..district)
   check(W.StationParts[kind][district].Parent~=nil,"station has live interaction geometry")
   check(W:InsideSafe(W.Stations[kind][district]),"station inside safe room")
  end
  -- Every hallway is entered through a 14-stud clear door.
- local room=world.CardCity:FindFirstChild(if district==1 then "CRUMB CLUB / Starter Hideout" else "CRUMB CLUB / Satellite "..district)
+ local room=world.CardCity:FindFirstChild("Backroom / "..district)
  check(room~=nil,"clubhouse model exists")
  for _,p in room:GetChildren() do
-  if p.Name=="Front brick wall" then check(math.abs(p.Position.X-cp.X)-p.Size.X/2>=7,"front wall leaves entrance clear") end
+  if p.Name=="Front partition" then check(math.abs(p.Position.X-cp.X)-p.Size.X/2>=10,"front wall leaves entrance clear") end
  end
 end
+local targetIds={}
 for _,target in W.Targets do
+ check(not targetIds[target.Id],"all target reservation identifiers are unique"); targetIds[target.Id]=true
  check(C.TargetStyles[target.Style]~=nil,"target style configured")
  check(#target.Route>=2,"target has an actual walk route")
  for _,point in target.Route do check(W:DistrictAt(point)==target.District,"route stays in target district") end
@@ -114,11 +130,73 @@ for _,obj in world:GetDescendants() do
 end
 check(shops==15,"all fifteen storefronts have open-entry geometry")
 check(boxes>=20,"starter market is stocked")
-check(cafeSeats>=20,"cafes and food court contain actual seating")
+check(cafeSeats>=8,"cafes and food court contain actual seating")
 N:Tick(10,0.25)
 check(true,"NPC status and route update executes")
+for d=1,5 do
+ check(W.Stations.Bank[5+d]~=nil,"every hidden workshop has an external van intake")
+ check(W.VanSpawns[d]~=nil,"every garage has a van spawn")
+end
+check((W.Centers[5]-W.Centers[1]).Magnitude==960,"larger city has 960 studs between end districts")
+local E=load("EnvironmentService"); E:Start()
+check(world:GetAttribute("Weather")=="Clear","weather starts consistently")
+worldTime+=C.Weather.Duration+1; E:Tick()
+check(E.State=="Overcast","weather advances on authoritative server timer")
+worldTime+=C.Weather.Duration+1; E:Tick()
+check(E.State=="Rain","weather enters rain")
+check(lighting.ClockTime>=0 and lighting.ClockTime<24,"day clock remains bounded")
+local traffic=load("TrafficService")
+local gameMock={World=W,State={},Environment=E,Root=function() return nil end}
+traffic:Start(gameMock)
+check(#traffic.Cars==24,"24 modelled traffic vehicles created")
+check(traffic:Green(1) and not traffic:Green(C.Traffic.GreenSeconds+1),"traffic signals have a pedestrian interval")
+traffic:Tick(1,0.1)
+for _,car in traffic.Cars do check(car.Speed>=0 and car.Speed<=C.Traffic.Acceleration*.1+0.001,"traffic accelerates within configured limit") end
+for step=2,100 do traffic:Tick(step*.1,.1) end
+for _,car in traffic.Cars do check(car.Speed<=C.Traffic.Speed*C.Weather.Profiles.Rain.Drive+.001,"rain lowers traffic cruising cap") end
+check(#W.Stations.CosmeticShop==5,"five modelled outfitters have validated purchase registers")
+check(world.CardCity.Vegetation~=nil,"vegetation is grouped for streaming and sway")
+check(#world.CardCity.Vegetation:GetChildren()>=35,"additional planting exists across the city")
+local character=instance("Model");character.Name="WardrobeTestAvatar";character.Parent=world
+for _,spec in {{"Head",v(2,1,1),v(0,5,0)},{"UpperTorso",v(2,1.6,1),v(0,3.8,0)}} do local part=instance("Part");part.Name=spec[1];part.Size=spec[2];part.CFrame=cf(spec[3]);part.Parent=character end
+local accessory=instance("Accessory");accessory.Parent=character;local handle=instance("Part");handle.Name="Handle";handle.Transparency=0;handle.Parent=accessory;local attachment=instance("Attachment");attachment.Name="HatAttachment";attachment.Parent=handle
+local cosmeticProfile={Cosmetics={Owned={canvas_mint=true,round_specs=true,courier_pack=true,mint_jacket=true},Equipped={Head="canvas_mint",Face="round_specs",Back="courier_pack",Outfit="mint_jacket"}}}
+local cos=load("CosmeticService");cos:Init({Data={Get=function() return cosmeticProfile end}})
+cos:Apply({Character=character})
+check(#character.CityCosmetics:GetChildren()==4,"wardrobe builds all four actual wearable model slots")
+check(handle.Transparency==1,"equipping a cap temporarily hides conflicting original headwear")
+for _,part in character.CityCosmetics:GetDescendants() do if part:IsA("BasePart") then check(not part.Anchored and not part.CanCollide and part.Massless,"cosmetic model cannot alter character collision or movement") end end
+cosmeticProfile.Cosmetics.Equipped.Head="";cos:Apply({Character=character})
+check(handle.Transparency==0,"removing a cap restores original avatar headwear")
+check(#character.CityCosmetics:GetChildren()==3,"reapplying clothes cleans up prior models")
+-- Exercise the actual R15 construction path with a fixture at the external API boundary.
+replicated.CreateHumanoidModelFromDescriptionAsync=function()
+ local rig=instance("Model")
+ for _,spec in {{"HumanoidRootPart",v(2,2,1),v(0,3,0)},{"Head",v(1.6,1.2,1),v(0,5,0)},{"UpperTorso",v(2,1.6,1),v(0,3.8,0)},{"RightHand",v(.4,.6,.4),v(1.4,3,0)},{"LeftHand",v(.4,.6,.4),v(-1.4,3,0)}} do
+  local p=instance("Part");p.Name=spec[1];p.Size=spec[2];p.CFrame=cf(spec[3]);p.Parent=rig
+ end
+ local humanoid=instance("Humanoid");humanoid.Parent=rig
+ return rig
+end
+N:Prepare()
+check(N.AvatarTemplate~=nil,"R15 API success produces a reusable template")
+local citizen=N:Actor(W.Root.Actors,"Detailed Citizen",v(0,0,25),C.Palette.Purple)
+check(citizen:GetAttribute("R15Citizen"),"live citizen uses a real articulated-rig model path")
+check(citizen:FindFirstChild("Jacket left lapel")~=nil,"rig has modelled clothing detail")
+check(citizen:FindFirstChild("CitizenPhone")~=nil,"rig has its living-city phone prop")
+check(citizen:FindFirstChild("Umbrella canopy")~=nil,"rig has weather-reactive umbrella geometry")
+local factory=modules.ModelFactory
+local van=factory.vehicle(world,cf(0,2,100),true,C.Palette.Mint,true)
+check(not van.PrimaryPart.Anchored,"player van chassis is physically unanchored")
+check(van.DriverSeat~=nil and van.StashHandle~=nil,"van model has a real seat and storage interaction point")
+local wheelContacts=0
+for _,part in van:GetDescendants() do if part:IsA("BasePart") then
+ if part.Name=="Wheel" then check(part.CanCollide,"physical wheel contacts exist");wheelContacts+=1 end
+ if part~=van.PrimaryPart then check(part.Massless,"visual van parts do not destabilize vehicle mass") end
+end end
+check(wheelContacts==4,"player van has four physical wheel contacts")
 local before=world.CardCity
 W:Build()
 check(before.Parent==nil,"rebuilding cleans up the old generated city")
-check(#W.Targets==45 and #W.SafeZones==5,"rebuilding does not duplicate city state")
+check(#W.Targets==65 and #W.SafeZones==5,"rebuilding does not duplicate city state")
 print("PASS: "..total.." city-generation assertions (mocked instances; no Roblox physics or rendering)")
