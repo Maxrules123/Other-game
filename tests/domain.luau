@@ -36,14 +36,14 @@ local services={
  HttpService={GenerateGUID=function() id+=1; return "token"..id end},
  RunService={IsStudio=function() return false end},
  DataStoreService={GetDataStore=function() return store end},
- Players={},
+ Players={}, PathfindingService={},
 }
 local env={
  Color3={fromRGB=function(r,g,b) return {r,g,b} end},
  Vector3={new=vec},
  Random={new=function() return {NextNumber=function(_,lo,hi) return lo+(hi-lo)*0.5 end} end},
  game={GetService=function(_,name) return services[name] end},
- script={Parent={PlayerDataService="PlayerDataService",WorldService="WorldService",NPCService="NPCService",InventoryService="InventoryService",MissionService="MissionService",SecurityService="SecurityService",VaultService="VaultService"}},
+ script={Parent={PlayerDataService="PlayerDataService",WorldService="WorldService",NPCService="NPCService",InventoryService="InventoryService",MissionService="MissionService",SecurityService="SecurityService",VaultService="VaultService",InteractionService="InteractionService"}},
  workspace={GetServerTimeNow=function() return now end},
  task={wait=function() end},
  os={time=function() return time end,clock=function() return now end},
@@ -59,6 +59,7 @@ local R=load("Rules")
 local M=load("MissionService")
 local I=load("InventoryService")
 local D=load("PlayerDataService")
+local T=load("InteractionService")
 local function player(userId)
  return {UserId=userId,Parent=true,GetNetworkPing=function() return 0 end,Kick=function(self,msg) self.Kicked=msg end}
 end
@@ -109,6 +110,7 @@ equal(R.lootValue(100,2,2,2,C),246,"variant, terminal, identity value is rounded
 -- Use the real domain methods with engine boundaries replaced by deterministic mocks.
 Modules.WorldService={}; Modules.NPCService={}; Modules.SecurityService={}; Modules.VaultService={}
 local G=load("GameService")
+T:Init(G)
 local profiles={}
 local stateA=player(10); local stateB=player(11)
 -- A real default profile from the data loader.
@@ -116,7 +118,7 @@ check(D:Load(stateA),"gameplay profile loads")
 profile=D:Get(stateA); profiles[stateA]=profile; profiles[stateB]=clone(profile)
 G.Data={Get=function(_,p) return profiles[p] end}
 G.Remote={Events={},FireClient=function(self,p,kind,packet) table.insert(self.Events,{p,kind,packet}) end}
-G.World={Checkpoints={"checkpoint"},SafeZones={vec(0,0,0)},InsideSafe=function() return true end,DistrictAt=function() return 1 end}
+G.World={Checkpoints={"checkpoint"},Stations={Bank={vec(0,3,3)},Practice={vec(0,3,3)},Resupply={vec(0,3,3)},Hideout={vec(0,3,3)}},Secrets={},SecretParts={},SafeZones={vec(0,0,0)},InsideSafe=function() return true end,DistrictAt=function() return 1 end}
 G.Security={Visible=function() return true end}
 local root={Position=vec(0,3,3),CFrame="start"}
 G.Root=function() return root end
@@ -132,7 +134,7 @@ local a=G.State[stateA].Attempt
 now=a.Start+a.Duration*a.Center
 G:Resolve(stateA,a.Token)
 equal(#G.State[stateA].Loot,1,"valid timing grants exactly one card")
-equal(G.State[stateA].Heat,C.Heat.Success,"success adds modest Heat")
+equal(G.State[stateA].Heat,C.Heat.Success*C.Approaches.Careful.Heat,"success adds modest Heat")
 check(profile.Starter==2,"first success advances onboarding")
 G:Resolve(stateA,a.Token)
 equal(#G.State[stateA].Loot,1,"replayed token cannot duplicate reward")
@@ -168,7 +170,7 @@ G:Begin(stateA,"D1N1"); a=s.Attempt
 now=a.Start+a.Duration+2
 G:Resolve(stateA,a.Token,true)
 equal(#s.Loot,0,"timing timeout grants no loot")
-equal(s.Heat,C.Heat.Success+C.Heat.Failure,"miss adds configured Heat")
+equal(s.Heat,(C.Heat.Success+C.Heat.Failure)*C.Approaches.Careful.Heat,"miss adds configured Heat")
 check(target.Suspicion>0,"miss increases target suspicion")
 for _=1,5 do table.insert(s.Loot,{Id="D1R1",Variant="Standard"}) end
 local banked=profile.Cash
@@ -230,4 +232,149 @@ check(profile.Badges["Identity 1"],"prestige awards identity badge")
 equal(profile.Identities,1,"prestige adds exactly one identity")
 G:Prestige(stateA,"confirmed")
 equal(profile.Identities,1,"prestige token cannot be replayed")
+-- Expansion: schema migration, multi-stage scoring, facilities, gadgets and secrets.
+local legacy=clone(profile); legacy.Schema=1; legacy.Cash=777; legacy.Hideout=nil; legacy.Secrets=nil; legacy.Stats=nil
+legacy.Upgrades.Gadgets=nil; legacy.Upgrades.Composure=nil; legacy.Upgrades.Appraisal=nil
+records.player_23={Data=legacy}
+local migrated=player(23)
+check(D:Load(migrated),"version-one save migrates without a reset")
+local migratedProfile=D:Get(migrated)
+equal(migratedProfile.Cash,777,"migration preserves currency")
+equal(migratedProfile.Schema,2,"migration updates schema")
+equal(migratedProfile.Hideout.Network,0,"migration adds facility defaults")
+equal(migratedProfile.Upgrades.Gadgets,0,"migration adds new upgrade defaults")
+check(next(migratedProfile.Secrets)==nil,"migration adds empty city journal")
+for _,pattern in {"Sweep","Reverse","Bounce"} do
+ local a_={Duration=2,Center=0.5,Width=0.3,Drift=0,Pattern=pattern}
+ local elapsed=if pattern=="Bounce" then 0.5 else 1
+ equal(R.stageGrade(elapsed,a_),"Perfect","pattern center hit: "..pattern)
+ equal(R.stageGrade(-1,a_),"Miss","negative time denied: "..pattern)
+ equal(R.stageGrade(3,a_),"Miss","expired input denied: "..pattern)
+end
+check(R.zone(0.5,2,0.5,0.1,0.2)>0.5,"later-stage zone actually drifts")
+equal(R.stageCount(5,"VIP",C),3,"VIP stage count capped at three")
+equal(R.charges(profile,C),0,"gadgets are locked before purchase")
+profile.Upgrades.Gadgets=2; profile.Hideout.Workshop=2
+equal(R.charges(profile,C),4,"gadget and workshop capacity stack")
+profile.Starter=8; profile.Cash=10000; profile.Reputation=1000
+profile.Upgrades.Composure=0; s.Immunity=0; s.Heat=0; s.Loot={}; target.Style="VIP"; target.Available=0
+local function hitAll()
+ while s.Attempt do
+  local step=s.Attempt; local found=false
+  for sample=1,999 do
+   local elapsed=step.Duration*sample/1000
+   if R.stageGrade(elapsed,step)=="Perfect" then now=step.Start+elapsed; found=true; break end
+  end
+  check(found,"timing pattern has an attainable perfect zone")
+  G:Resolve(stateA,step.Token)
+ end
+end
+G:Begin(stateA,"D1N1","Bold")
+local first=s.Attempt; local oldToken=first.Token
+now=first.Start+first.Duration*first.Center
+G:Resolve(stateA,oldToken)
+equal(#s.Loot,0,"first VIP stage does not award partial loot")
+equal(s.Attempt.Stage,2,"successful first stage advances challenge")
+local secondToken=s.Attempt.Token
+check(secondToken~=oldToken,"each stage has a fresh token")
+G:Resolve(stateA,oldToken)
+equal(s.Attempt.Token,secondToken,"replayed prior stage cannot advance")
+hitAll()
+equal(#s.Loot,1,"all stages award exactly one card")
+check(s.Loot[1].Quality>1,"bold VIP reward includes explicit value quality")
+equal(s.Combo,1,"first complete challenge starts a streak")
+check(s.Heat>C.Heat.Success,"bold approach adds more Heat")
+target.Available=0; G:Begin(stateA,"D1N1","Careful"); hitAll()
+equal(s.Combo,2,"consecutive full challenges grow the streak")
+check(s.Loot[2].Quality>1.25,"streak adds capped quality to the reward")
+target.Available=0; G:Begin(stateA,"D1N1"); G:CancelInteraction(stateA,true)
+equal(s.Combo,0,"live cancellation resets streak")
+check(s.Heat>0,"live cancellation is not a free reroll")
+equal(R.rarityWeight(0,6,2,C),0,"rarity luck never creates an unavailable card")
+equal(R.rarityWeight(74,1,2,C),74,"rarity luck preserves Common baseline weight")
+check(R.rarityWeight(1,6,1.3,C)>R.rarityWeight(1,2,1.3,C),"luck favors higher tiers even in districts without Common cards")
+local oldAttempts=profile.Stats.Attempts
+local oldHeat=s.Heat; local oldLoot=#s.Loot; local oldRep=profile.Reputation
+T:Practice(stateA); hitAll()
+equal(s.Heat,oldHeat,"practice never adds Heat")
+equal(#s.Loot,oldLoot,"practice never awards a card")
+equal(profile.Reputation,oldRep,"practice cannot farm Reputation")
+equal(profile.Stats.Attempts,oldAttempts,"practice does not alter actual attempt statistics")
+local oldLounge=profile.Hideout.Lounge
+G:HideoutBuy(stateA,"Lounge")
+equal(profile.Hideout.Lounge,oldLounge+1,"facility purchase upgrades the room")
+profile.Cash=0; oldLounge=profile.Hideout.Lounge
+G:HideoutBuy(stateA,"Lounge")
+equal(profile.Hideout.Lounge,oldLounge,"unaffordable facility purchase denied")
+equal(profile.Cash,0,"facility purchase cannot make Cash negative")
+G:Resupply(stateA)
+equal(s.GadgetCharges,4,"supply bench refills configured charge capacity")
+G.World.InsideSafe=function() return false end
+s.Heat=70; s.GadgetReady=0; now+=50
+G:Decoy(stateA)
+equal(s.GadgetCharges,3,"decoy consumes exactly one charge")
+equal(s.Heat,58,"decoy relieves configured Heat")
+check(s.DecoyUntil>now,"decoy temporarily suppresses pursuit")
+G:Decoy(stateA)
+equal(s.GadgetCharges,3,"decoy cooldown prevents rapid repeat use")
+G.World.InsideSafe=function() return true end
+G.World.Secrets.S1_1=vec(0,3,3)
+local beforeSecret=profile.Cash
+G:Secret(stateA,"S1_1")
+check(profile.Secrets.S1_1,"nearby valid secret is saved")
+equal(profile.Cash,beforeSecret+C.Secrets.S1_1.Cash,"secret pays its exact reward")
+G:Secret(stateA,"S1_1")
+equal(profile.Cash,beforeSecret+C.Secrets.S1_1.Cash,"secret cannot pay twice")
+G.World.Secrets.S5_1=vec(0,3,3); profile.Districts["5"]=nil
+G:Secret(stateA,"S5_1")
+check(not profile.Secrets.S5_1,"locked-district secret denied")
+profile.Cash=1000; profile.Districts["2"]=true; profile.Hideout.Network=1
+G.World.Checkpoints[2]="plaza"
+s.Loot={}; s.Heat=0; s.Chase=false
+local oldCash=profile.Cash
+G:Travel(stateA,2)
+equal(root.CFrame,"plaza","courier moves player to chosen checkpoint")
+equal(profile.Cash,oldCash-R.travelCost(1,2,C),"courier charges exact fare")
+now+=5; s.Heat=80; oldCash=profile.Cash
+G:Travel(stateA,2)
+equal(profile.Cash,oldCash,"hot players cannot use courier travel")
+s.Heat=0; s.Loot={{Id="D1R1",Variant="Standard"}}
+G:Travel(stateA,2)
+equal(profile.Cash,oldCash,"courier cannot extract unbanked loot")
+profile.Cash=C.Prestige.Cash; profile.Reputation=C.Prestige.Reputation; profile.Starter=8
+for i=1,5 do profile.Districts[tostring(i)]=true end
+s.Loot={}; s.Prestige={Token="second-identity",Ends=now+30}
+local home=profile.Hideout; local journal=profile.Secrets; local stats=profile.Stats
+G:Prestige(stateA,"second-identity")
+check(profile.Hideout==home,"New Identity preserves clubhouse upgrades")
+check(profile.Secrets==journal,"New Identity preserves city journal")
+check(profile.Stats==stats,"New Identity preserves career statistics")
+equal(profile.Upgrades.Gadgets,0,"New Identity resets normal gadget upgrades")
+equal(s.GadgetCharges,0,"New Identity clears gadget charges")
+-- Actual guard state machine: a decoy only releases its owner's pursuit.
+local S=load("SecurityService"); S:Init(G)
+G.World.InsideSafe=function() return false end
+stateA.Character={FindFirstChild=function() return root end}
+local guard={Model={PrimaryPart={Position=vec(0,3,30),CFrame={LookVector={Dot=function() return 1 end}},Status={Text={}}}},District=1,Target=stateA,LastSeen=now,Phase=0,Origin=vec(0,3,30),LastPath=0}
+G.NPC.Guards={guard}; s.Heat=90; s.Immunity=0; s.Chase=true; s.DecoyUntil=now+3
+G.State[stateB].Heat=0; G.State[stateB].Immunity=0
+S.Visible=function() return true end; S.Move=function() end
+local escaped=profile.Stats.Escapes
+S:Tick(now,0.25)
+check(guard.Target==nil,"decoy makes pursuing guard lose intended player")
+check(not s.Chase,"decoy resolves the player's chase state")
+equal(profile.Stats.Escapes,escaped+1,"a real resolved chase counts exactly one escape")
+check(not G.State[stateB].Chase,"cool bystander is not punished by another player's decoy")
+now+=4
+S:Tick(now,0.25)
+check(guard.Target==stateA,"hot player can be detected again after decoy expires")
+check(s.Chase,"reacquisition restores chase state")
+G.World.InsideSafe=function() return true end
+S:Tick(now,0.25)
+check(guard.Target==nil,"safe room reliably releases pursuit")
+local beforeFar=profile.Cash
+G.World.Secrets.S1_2=vec(100,3,3)
+G:Secret(stateA,"S1_2")
+equal(profile.Cash,beforeFar,"distant secret cannot pay a reward")
+check(not profile.Secrets.S1_2,"distant secret cannot be discovered remotely")
 print("PASS: "..passed.." domain assertions (mocked engine boundaries; not Studio playtesting)")

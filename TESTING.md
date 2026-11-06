@@ -2,12 +2,16 @@
 
 ## Checks executed in this environment
 
-- All 17 Luau source files compiled using Luau CLI 0.745.
+- All 19 Luau source files compiled using Luau CLI 0.745.
 - Rojo 7.7.1 successfully built the complete DataModel.
-- 107 automated assertions exercised actual Config, Rules, PlayerDataService, InventoryService, MissionService, and GameService source using mocked engine boundaries.
+- 183 automated assertions exercised actual Config, Rules, PlayerDataService, InventoryService, MissionService, InteractionService, SecurityService, and GameService source using mocked engine boundaries.
 - Tests cover receipt-time scoring, early/late misses, capacity, reachable catalog entries, variant/bank multipliers, capped identity bonuses, load/reload, overlapping save sessions, stale and expired leases, load failures, unsupported schemas, simultaneous claims, replayed tokens, timeouts, Heat/suspicion increments, banking, purchases, district requirements, capture rounding/immunity, clean-trip eligibility, daily rotation/idempotent claims, duplicate discovery rewards, and prestige reset/preserve behavior.
 
 No Roblox Studio session was run. No device test, production DataStore test, pathfinding test, or Roblox-aware strict type analysis is claimed.
+
+Additional executed check: 362 city-generation assertions ran actual WorldService and NPCService under lightweight instance/vector mocks. They check five safe-room checkpoints, every station, fifteen open-entry shops, 45 route/style definitions and actors, fifteen guards, fifteen secrets, starter inventory props, actor updates, and rebuild cleanup. These checks do not simulate collision or rendering.
+
+Expansion domain tests also cover schema-1 migration, phase tokens/replays, no partial rewards, drifting/reverse/bounce scoring, perfect-zone attainability, capped quality streaks, cancellation, zero-reward practice, facility affordability, decoy charges/cooldown/pursuit/reacquisition, courier risk restrictions, one-time/distant secret rewards, rarity luck without Common drops, and preservation of permanent home/journal/stats through prestige.
 
 ## Required Studio checks
 
@@ -74,6 +78,22 @@ Use a private published test experience and development-only DataStore name when
 - [ ] Card reveal is short, skippable, and does not block movement.
 - [ ] Reduced motion and camera shake settings work and persist. No flashing effects.
 - [ ] Add permitted sound assets and verify both volume controls and all cue names.
-- [ ] Profile with 12 players, 30 targets, ten guards, and concurrent Vault Runs; check pathfinding load and frame/network cost.
+- [ ] Profile with 12 players, 45 targets, fifteen guards, and concurrent Vault Runs; check pathfinding load and frame/network cost.
 
 Do not mark the game release-ready until these engine/device checks pass and any resulting issues are corrected.
+
+## Clubhouse Update checks
+
+- [ ] Enter all fifteen shops and five clubhouses; inspect open door clearance, roof/camera occlusion, stocked interiors, tables, furniture, lighting and sign directions.
+- [ ] Traverse alleys, back lanes and each courtyard; find all fifteen souvenirs without clipping into props.
+- [ ] Verify normal NPC routes and new limb motion do not cross street furniture; scouting pauses an NPC for eight seconds without blocking another player's claim.
+- [ ] Choose both approaches, clear every stage/personality, miss later stages, cancel and attempt token replays. Award exactly one card on a full clear.
+- [ ] Compare target styles, equipment effects and endgame rarity luck. Check tier costs/requirements/current-next text on every upgrade.
+- [ ] Verify the practice arcade and live cancellation cannot farm rewards or streaks.
+- [ ] Buy all clubhouse levels; verify recovery, display multiplier, supply capacity, courier fares and personal decorations for two different profiles.
+- [ ] Confirm only the decoy owner's pursuers are distracted, and a hot player can be reacquired after 3.5 seconds.
+- [ ] Test travel proximity, locked destinations, fares, cooldowns, Heat/chase rejection and carried-card rejection.
+- [ ] Verify souvenirs disappear only for the discovering player, pay once, reappear correctly for newcomers/streamed models, and persist after rejoin/prestige.
+- [ ] Load an actual schema-1 test profile into the new published private-test build; retain all existing progress and save/rejoin with schema-2 fields.
+- [ ] Open target previews, upgrade and Hideout menus on narrow portrait and landscape screens; test the close button, long scrolling descriptions, focus navigation, stage transitions and decoy touch button.
+- [ ] Profile with twelve players, 45 targets, fifteen guards, concurrent practice/Vault runs and live streaming before release.

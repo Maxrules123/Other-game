@@ -11,11 +11,9 @@ local function weighted(entries: {any}, weight: (any)->number): number
  for index,entry in entries do roll -= weight(entry); if roll<=0 then return index end end
  return #entries
 end
-function I.roll(district: number, perfect: boolean): any
+function I.roll(district: number, perfect: boolean, luck: number?): any
  local weights = table.clone(C.Districts[district].Weights)
- if perfect then
-  for r = 2,#weights do weights[r] *= 1.3 end
- end
+ for r=2,#weights do weights[r]=R.rarityWeight(weights[r],r,(if perfect then 1.3 else 1)*(luck or 1),C) end
  local rarity = weighted(weights,function(v) return v end)
  local variant = C.Variants[weighted(C.Variants,function(v) return v.Weight end)]
  return {Id=string.format("D%dR%d",district,rarity),Variant=variant.Name}
@@ -26,7 +24,7 @@ function I.value(profile: any, loot: {any}): number
   local card=C.Cards[entry.Id]
   local multiplier=1
   for _,variant in C.Variants do if variant.Name==entry.Variant then multiplier=variant.Multiplier end end
-  total += R.lootValue(card.Value,multiplier,profile.Upgrades.Terminal,profile.Identities,C)
+  total += R.lootValue(card.Value,multiplier*(entry.Quality or 1)*R.galleryBonus(profile,C),profile.Upgrades.Terminal,profile.Identities,C)
  end
  return total
 end

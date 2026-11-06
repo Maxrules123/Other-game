@@ -13,6 +13,7 @@ G.Inventory=require(script.Parent.InventoryService)
 G.Missions=require(script.Parent.MissionService)
 G.Security=require(script.Parent.SecurityService)
 G.Vault=require(script.Parent.VaultService)
+G.Interaction=require(script.Parent.InteractionService)
 function G:Root(player: Player): BasePart?
  local char=player.Character
  local hum=if char then char:FindFirstChildOfClass("Humanoid") else nil
@@ -26,75 +27,29 @@ function G:Event(player: Player, kind: string, amount: number)
  local profile=self.Data:Get(player); if not profile then return end
  local message=self.Missions.event(profile,kind,amount)
  if message then self:Notify(player,message,"Success") end
+ if kind=="escape" then profile.Stats.Escapes+=amount elseif kind=="vault" then profile.Stats.VaultClears+=amount end
 end
-function G:CancelInteraction(player: Player)
- local s=self.State[player]; if not s then return end
- if s.Attempt then
-  local target=self.NPC.Targets[s.Attempt.Target]
-  if target and target.Reserved==player then target.Reserved=nil; target.Available=os.clock()+3 end
-  s.Attempt=nil; self.Remote:FireClient(player,"TimingEnd",{})
+function G:CancelInteraction(player: Player,penalize: boolean?) self.Interaction:Cancel(player,penalize) end
+function G:NearStation(player: Player,kind: string): boolean
+ local root=self:Root(player); if not root then return false end
+ for index,pos in self.World.Stations[kind] or {} do
+  if (root.Position-pos).Magnitude<14 and self.Security:Visible(root.Position,pos,self.World.StationParts and self.World.StationParts[kind] and self.World.StationParts[kind][index]) then return true end
  end
+ return false
 end
 function G:Heat(player: Player, amount: number)
  local s=self.State[player]; if not s then return end
  s.Heat=math.clamp(s.Heat+amount,0,100); s.LastTrouble=os.clock()
 end
-function G:Begin(player: Player, id: string)
- local p=self.Data:Get(player); local s=self.State[player]; local target=self.NPC.Targets[id]; local root=self:Root(player)
- if not p or not s or not root or not target or s.Attempt or s.Vault then return end
- if target.Reserved or target.Available>os.clock() then self:Notify(player,"That target is recovering or busy."); return end
- if not p.Districts[tostring(target.District)] then self:Notify(player,"Unlock this district first."); return end
- if p.Upgrades.Sleight<C.Districts[target.District].Equipment then self:Notify(player,"This target needs Sleight "..C.Districts[target.District].Equipment..". Upgrade at the hideout."); return end
- if #s.Loot>=R.capacity(p.Upgrades.Capacity,C) then self:Notify(player,"Pockets full. Bank at a mint hideout terminal."); return end
- if (root.Position-target.Model.PrimaryPart.Position).Magnitude>C.InteractDistance or not self.Security:Visible(root.Position,target.Model.PrimaryPart.Position) then return end
- local duration=(C.Timing.BaseDuration-target.District*C.Timing.DistrictSpeed)*(1-p.Upgrades.Sleight*C.Timing.SleightSpeed)
- local width=C.Timing.BaseWidth-target.District*C.Timing.DistrictWidth+p.Upgrades.Focus*C.Timing.FocusWidth
- local token=HttpService:GenerateGUID(false)
- local start=workspace:GetServerTimeNow()+C.InteractionLead
- target.Reserved=player
- s.Attempt={Target=id,Token=token,Start=start,Duration=duration,Center=Random.new():NextNumber(C.Timing.MinCenter,C.Timing.MaxCenter),Width=width}
- local packet=table.clone(s.Attempt); packet.Name=C.Districts[target.District].Name
- self.Remote:FireClient(player,"Timing",packet)
-end
-function G:Resolve(player: Player, token: string, expired: boolean?)
- local p=self.Data:Get(player); local s=self.State[player]; local root=self:Root(player)
- if not p or not s or not s.Attempt then return end
- local a=s.Attempt
- if a.Token~=token then return end
- local target=self.NPC.Targets[a.Target]
- if not target or target.Reserved~=player then self:CancelInteraction(player); return end
- local elapsed=workspace:GetServerTimeNow()-a.Start
- if not expired and elapsed < -0.1 then return end
- s.Attempt=nil; target.Reserved=nil; target.Available=os.clock()+C.TargetCooldown
- self.Remote:FireClient(player,"TimingEnd",{})
- local compensation=math.clamp(player:GetNetworkPing(),0,C.LatencyAllowance)
- local grade=if expired then "Miss" else R.grade(elapsed-compensation,a.Duration,a.Center,a.Width)
- if not root or (root.Position-target.Model.PrimaryPart.Position).Magnitude>C.InteractDistance or not self.Security:Visible(root.Position,target.Model.PrimaryPart.Position) then grade="Miss" end
- if not p.Districts[tostring(target.District)] or #s.Loot>=R.capacity(p.Upgrades.Capacity,C) then grade="Miss" end
- if grade=="Miss" then
-  self:Heat(player,C.Heat.Failure); target.Suspicion=math.min(100,target.Suspicion+45)
-  for _,other in self.NPC.Targets do if (other.Origin-target.Origin).Magnitude<22 then other.Suspicion=math.min(100,other.Suspicion+20) end end
-  self:Notify(player,"OOPS · Target alerted. +"..C.Heat.Failure.." Heat. Try a different tourist.","Failure")
- else
-  local loot=self.Inventory.roll(target.District,grade=="Perfect")
-  table.insert(s.Loot,loot)
-  local milestone=self.Inventory.discover(p,loot)
-  p.Reputation+=if grade=="Perfect" then 3 else 2
-  self:Heat(player,C.Heat.Success)
-  self:Event(player,"success",1); self:Event(player,"collect",1); self:Event(player,"rarity",C.Cards[loot.Id].Rarity)
-  self.Remote:FireClient(player,"Reveal",{Loot=loot,Grade=grade,Milestone=milestone})
- end
- self:Snapshot(player)
-end
+function G:Begin(player: Player,id: string,approach: string?) self.Interaction:Begin(player,id,approach) end
+function G:Resolve(player: Player,token: string,expired: boolean?) self.Interaction:Resolve(player,token,expired) end
 function G:Bank(player: Player)
  local p=self.Data:Get(player); local s=self.State[player]; local root=self:Root(player)
  if not p or not s or not root or s.Vault or s.Attempt then return end
- local near=false
- for _,center in self.World.SafeZones do if (root.Position-(center+Vector3.new(0,3,3))).Magnitude<14 then near=true; break end end
- if not near then self:Notify(player,"Walk to a mint hideout terminal to bank."); return end
+ if not self:NearStation(player,"Bank") then self:Notify(player,"Walk to a mint hideout terminal to bank."); return end
  if #s.Loot==0 then self:Notify(player,"Empty pockets. Find a tourist across the street."); return end
  local count=#s.Loot; local amount=self.Inventory.value(p,s.Loot)
- s.Loot={}; p.Cash+=amount; p.Reputation+=count
+ s.Loot={}; p.Cash+=amount; p.Reputation+=count; p.Stats.Banked+=amount
  self:Event(player,"bank",amount)
  if not s.CaughtTrip then self:Event(player,"clean",count) end
  s.CaughtTrip=false
@@ -104,11 +59,69 @@ function G:Buy(player: Player, name: string)
  local p=self.Data:Get(player); local s=self.State[player]; local root=self:Root(player); local def=C.Upgrades[name]
  if not p or not s or not root or not def or s.Vault then return end
  if not self.World:InsideSafe(root.Position) then self:Notify(player,"Visit a mint hideout to buy upgrades."); return end
- local level=p.Upgrades[name]; local price=R.upgradeCost(def.BaseCost,def.Growth,level)
+ local level=p.Upgrades[name]
+ local rep=C.UpgradeRep[level+1] or 0
+ if p.Reputation<rep then self:Notify(player,"This tier needs "..rep.." REP (kept, not spent)."); return end
+ local price=R.upgradeCost(def.BaseCost,def.Growth,level)
  if not R.canBuy(p.Cash,price,level,def.Max) then self:Notify(player,if level>=def.Max then "Already maxed." else "Need $"..price.." Cash."); return end
  p.Cash-=price; p.Upgrades[name]+=1
  self:ApplyMovement(player); self:Event(player,"upgrade",1)
  self:Notify(player,name.." upgraded to "..p.Upgrades[name].."!","Success")
+end
+function G:HideoutBuy(player: Player,name: string)
+ local p=self.Data:Get(player); local s=self.State[player]; local root=self:Root(player); local def=C.HideoutUpgrades[name]
+ if not p or not s or not root or not def or s.Vault or s.Attempt then return end
+ if not self.World:InsideSafe(root.Position) then self:Notify(player,"Buy clubhouse improvements inside a safe room."); return end
+ local level=p.Hideout[name]; local price=R.upgradeCost(def.BaseCost,def.Growth,level); local rep=def.Rep*(level+1)
+ if p.Reputation<rep then self:Notify(player,"This clubhouse tier needs "..rep.." REP."); return end
+ if not R.canBuy(p.Cash,price,level,def.Max) then self:Notify(player,if level>=def.Max then "This room is fully upgraded." else "Need $"..price.." Cash."); return end
+ p.Cash-=price; p.Hideout[name]+=1
+ self:Notify(player,def.Name.." improved! Clubhouse upgrades survive New Identity.","Success")
+end
+function G:Resupply(player: Player)
+ local p=self.Data:Get(player); local s=self.State[player]
+ if not p or not s or s.Vault or s.Attempt then return end
+ if not self:NearStation(player,"Resupply") then self:Notify(player,"Walk to the mint supply bench in a clubhouse."); return end
+ local charges=R.charges(p,C)
+ if charges==0 then self:Notify(player,"Buy Gadgets level 1 to unlock the confetti decoy."); return end
+ s.GadgetCharges=charges
+ self:Notify(player,"Workbench restocked · "..charges.." confetti decoy charges. G / R1 / DECOY button.","Success")
+end
+function G:Decoy(player: Player)
+ local p=self.Data:Get(player); local s=self.State[player]; local root=self:Root(player); local now=os.clock()
+ if not p or not s or not root or s.Vault or s.Attempt or p.Upgrades.Gadgets<1 then return end
+ if self.World:InsideSafe(root.Position) then self:Notify(player,"Save confetti for the street. Restock at the mint workbench."); return end
+ if (s.GadgetCharges or 0)<1 then self:Notify(player,"No charges. Restock at the clubhouse supply bench."); return end
+ if (s.GadgetReady or 0)>now then self:Notify(player,"Decoy cooling down: "..math.ceil(s.GadgetReady-now).."s."); return end
+ s.GadgetCharges-=1; s.GadgetReady=now+C.Gadget.Cooldown-p.Upgrades.Gadgets*C.Gadget.CooldownPerLevel
+ s.DecoyUntil=now+C.Gadget.DistractSeconds; s.Heat=math.max(0,s.Heat-C.Gadget.HeatRelief)
+ self.Remote:FireClient(player,"Decoy",{})
+ self:Notify(player,"CONFETTI DISTRACTION · Move! Nearby security loses your trail briefly.","Success")
+end
+function G:Travel(player: Player,index: number)
+ if index%1~=0 or index<1 or index>#C.Districts then return end
+ local p=self.Data:Get(player); local s=self.State[player]; local root=self:Root(player)
+ if not p or not s or not root or s.Vault or s.Attempt then return end
+ if not self:NearStation(player,"Hideout") then self:Notify(player,"Use the courier route board at the back of a clubhouse."); return end
+ if (s.TravelReady or 0)>os.clock() then return end
+ if not p.Districts[tostring(index)] then self:Notify(player,"Unlock that district before booking a courier."); return end
+ local required=math.max(1,math.ceil((index-1)/2))
+ if p.Hideout.Network<required then self:Notify(player,"Courier Network "..required.." required."); return end
+ if #s.Loot>0 or s.Heat>=C.Hideout.TravelHeat or s.Chase then self:Notify(player,"Bank all cards and cool below "..C.Hideout.TravelHeat.." Heat before traveling."); return end
+ if self.World:DistrictAt(root.Position)==index then self:Notify(player,"You are already in this district."); return end
+ local fare=R.travelCost(p.Hideout.Network,index,C)
+ if p.Cash<fare then self:Notify(player,"Courier fare is $"..fare.."."); return end
+ p.Cash-=fare; s.TravelReady=os.clock()+3
+ root.CFrame=self.World.Checkpoints[index]; s.LastPosition=root.Position; s.Immunity=os.clock()+3
+ self:Notify(player,"COURIER ARRIVAL · "..C.Districts[index].Name.." · $"..fare,"Success")
+end
+function G:Secret(player: Player,id: string)
+ local p=self.Data:Get(player); local s=self.State[player]; local root=self:Root(player); local def=C.Secrets[id]; local pos=self.World.Secrets[id]
+ if not p or not s or not root or not def or not pos or s.Vault or s.Attempt or p.Secrets[id] then return end
+ if not p.Districts[tostring(def.District)] or (root.Position-pos).Magnitude>12 then return end
+ if not self.Security:Visible(root.Position,pos,self.World.SecretParts[id]) then return end
+ p.Secrets[id]=true; p.Cash+=def.Cash; p.Reputation+=def.Rep
+ self:Notify(player,"CITY SECRET · "..def.Name.." · +$"..def.Cash.." / +"..def.Rep.." REP. Check the clubhouse journal.","Reveal")
 end
 function G:Unlock(player: Player, index: number)
  if index%1~=0 or index<2 or index>#C.Districts then return end
@@ -130,7 +143,7 @@ function G:Capture(player: Player, dying: boolean?)
  self:CancelInteraction(player)
  local lost=R.penalty(#s.Loot,C.CaptureFraction)
  for _=1,lost do table.remove(s.Loot) end
- s.CaughtTrip=true; s.Heat=15; s.Chase=false; s.Immunity=os.clock()+C.CaptureImmunity
+ s.Combo=0; s.CaughtTrip=true; s.Heat=15; s.Chase=false; s.Immunity=os.clock()+C.CaptureImmunity
  local district=if root then self.World:DistrictAt(root.Position) or 1 else 1
  if root and not dying then root.CFrame=self.World.Checkpoints[district]; s.LastPosition=root.Position end
  self.Remote:FireClient(player,"Capture",{Lost=lost,Kept=#s.Loot,Fraction=C.CaptureFraction,Died=dying==true})
@@ -146,7 +159,7 @@ function G:Prestige(player: Player, token: string)
  for name in p.Upgrades do p.Upgrades[name]=0 end
  p.Starter=1; p.StarterProgress=0
  p.Identities+=1; p.Badges["Identity "..p.Identities]=true
- s.Loot={}; s.CaughtTrip=false; s.Heat=0; s.Chase=false; s.Immunity=os.clock()+10
+ s.Loot={}; s.Combo=0; s.GadgetCharges=0; s.CaughtTrip=false; s.Heat=0; s.Chase=false; s.Immunity=os.clock()+10
  root.CFrame=self.World.Checkpoints[1]; s.LastPosition=root.Position
  self:ApplyMovement(player)
  self:Notify(player,"NEW IDENTITY · Badge earned. Permanent bank bonus now "..math.floor((R.identityBonus(p.Identities,C)-1)*100+0.5).."%.","Success")
@@ -154,7 +167,7 @@ end
 function G:Snapshot(player: Player)
  local p=self.Data:Get(player); local s=self.State[player]; if not p or not s or player.Parent==nil then return end
  self.Missions.rotate(p)
- self.Remote:FireClient(player,"State",{Profile=p,Loot=s.Loot,Value=self.Inventory.value(p,s.Loot),Heat=s.Heat,Chase=s.Chase,Immunity=math.max(0,s.Immunity-os.clock()),Development=self.Data.IsDevelopment,Vault=if s.Vault then {Remaining=math.max(0,s.Vault.Ends-os.clock()),Collected=s.Vault.Collected,Stage=s.Vault.Stage} else nil})
+ self.Remote:FireClient(player,"State",{Profile=p,Loot=s.Loot,Value=self.Inventory.value(p,s.Loot),Heat=s.Heat,Chase=s.Chase,Immunity=math.max(0,s.Immunity-os.clock()),Development=self.Data.IsDevelopment,Combo=s.Combo or 0,Gadget={Charges=s.GadgetCharges or 0,Max=R.charges(p,C),Cooldown=math.max(0,(s.GadgetReady or 0)-os.clock())},Vault=if s.Vault then {Remaining=math.max(0,s.Vault.Ends-os.clock()),Collected=s.Vault.Collected,Stage=s.Vault.Stage} else nil})
 end
 function G:Request(player: Player, action: any, arg: any)
  local s=self.State[player]; if not s then return end
@@ -163,9 +176,17 @@ function G:Request(player: Player, action: any, arg: any)
  s.Tokens-=1
  if type(action)~="string" or not self.Data:Get(player) then return end
  if action=="Ready" then self:Snapshot(player)
+ elseif action=="Scout" and type(arg)=="string" and #arg<32 then self.Interaction:Scout(player,arg)
  elseif action=="Begin" and type(arg)=="string" and #arg<32 then self:Begin(player,arg)
+ elseif action=="Begin" and type(arg)=="table" and type(arg.Id)=="string" and #arg.Id<32 and type(arg.Approach)=="string" and #arg.Approach<16 then self:Begin(player,arg.Id,arg.Approach)
+ elseif action=="Practice" then self.Interaction:Practice(player)
+ elseif action=="Resupply" then self:Resupply(player)
+ elseif action=="Decoy" then self:Decoy(player)
+ elseif action=="HideoutBuy" and type(arg)=="string" and #arg<24 then self:HideoutBuy(player,arg)
+ elseif action=="Travel" and type(arg)=="number" and arg==arg then self:Travel(player,arg)
+ elseif action=="Secret" and type(arg)=="string" and #arg<24 then self:Secret(player,arg)
  elseif action=="Stop" and type(arg)=="string" and #arg<64 then self:Resolve(player,arg)
- elseif action=="Cancel" then self:CancelInteraction(player)
+ elseif action=="Cancel" then self:CancelInteraction(player,true)
  elseif action=="Bank" then self:Bank(player)
  elseif action=="Buy" and type(arg)=="string" and #arg<30 then self:Buy(player,arg)
  elseif action=="Unlock" and type(arg)=="number" and arg==arg then self:Unlock(player,arg)
@@ -207,7 +228,7 @@ function G:Character(player: Player, character: Model)
 end
 function G:Add(player: Player)
  if self.State[player] then return end
- self.State[player]={Loot={},Heat=0,LastTrouble=0,Immunity=os.clock()+10,Chase=false,VaultCooldown=0,Tokens=16,TokenTime=os.clock(),Suspicion={},Connections={}}
+ self.State[player]={Loot={},Combo=0,GadgetCharges=0,GadgetReady=0,DecoyUntil=0,Heat=0,LastTrouble=0,Immunity=os.clock()+10,Chase=false,VaultCooldown=0,Tokens=16,TokenTime=os.clock(),Suspicion={},Connections={}}
  local s=self.State[player]
  table.insert(s.Connections,player.CharacterAdded:Connect(function(char) self:Character(player,char) end))
  if not self.Data:Load(player) then self.State[player]=nil; for _,connection in s.Connections do connection:Disconnect() end; return end
@@ -242,7 +263,7 @@ function G:Tick(now: number, dt: number)
    end
    if root.Position.Y < -15 then root.CFrame=self.World.Checkpoints[1]; s.LastPosition=root.Position end
    local safe=self.World:InsideSafe(root.Position)
-   if safe then s.Heat=math.max(0,s.Heat-C.Heat.SafeDecay*dt)
+   if safe then s.Heat=math.max(0,s.Heat-(C.Heat.SafeDecay+p.Hideout.Lounge*C.Hideout.SafeRecovery)*dt)
    elseif now-s.LastTrouble>C.Heat.QuietSeconds then
     local seen=false
     for _,guard in self.NPC.Guards do if guard.Target==player and now-guard.LastSeen<1 then seen=true; break end end
@@ -264,7 +285,7 @@ function G:Tick(now: number, dt: number)
  self.NPC:Tick(now,dt); self.Security:Tick(now,dt); self.Vault:Tick(now)
 end
 function G:Start()
- self.World:Build(); self.NPC:Build(self.World); self.Security:Init(self); self.Vault:Init(self)
+ self.World:Build(); self.NPC:Build(self.World); self.Security:Init(self); self.Vault:Init(self); self.Interaction:Init(self)
  local network=Instance.new("Folder"); network.Name="Network"; network.Parent=ReplicatedStorage
  local remote=Instance.new("RemoteEvent"); remote.Name="Game"; remote.Parent=network; self.Remote=remote
  remote.OnServerEvent:Connect(function(player,action,arg)

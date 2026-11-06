@@ -18,7 +18,7 @@ for path in files:
     if result.returncode:
         raise SystemExit(result.stderr)
 print(f'PASS: {len(files)} Luau files compiled')
-modules = ['shared/Config', 'shared/Rules', 'server/MissionService', 'server/InventoryService', 'server/PlayerDataService', 'server/GameService']
+modules = ['shared/Config', 'shared/Rules', 'server/MissionService', 'server/InventoryService', 'server/PlayerDataService', 'server/InteractionService', 'server/SecurityService', 'server/GameService']
 bundle = 'local Sources = {}\n'
 for module in modules:
     source = (ROOT / 'src' / (module + '.luau')).read_text()
@@ -29,4 +29,13 @@ with tempfile.TemporaryDirectory() as tmp:
     test.write_text(bundle)
     subprocess.run([args.luau, str(test)], check=True)
     subprocess.run([args.rojo, 'build', str(ROOT/'default.project.json'), '-o', str(pathlib.Path(tmp)/'game.rbxlx')], check=True)
+world_bundle = 'local Sources = {}\n'
+for module in ['shared/Config', 'server/WorldService', 'server/NPCService']:
+    source = (ROOT / 'src' / (module + '.luau')).read_text()
+    world_bundle += 'Sources[' + json.dumps(module.split('/')[-1]) + '] = [====[\n' + source + '\n]====]\n'
+world_bundle += (ROOT / 'tests' / 'world.luau').read_text()
+with tempfile.TemporaryDirectory() as tmp:
+    test = pathlib.Path(tmp) / 'world.luau'
+    test.write_text(world_bundle)
+    subprocess.run([args.luau, str(test)], check=True)
 print('PASS: Rojo build. Roblox Studio runtime checks remain manual; see TESTING.md.')

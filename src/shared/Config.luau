@@ -2,7 +2,8 @@
 local C = {}
 C.Title = "CREDIT CARD STEALER"
 C.Subtitle = "Small cards. Big cartoon trouble."
-C.Schema = 1
+C.Schema = 2
+C.Release = "Card City / Clubhouse Update"
 C.StudioTestData = true -- Never opens the production store while true in Studio.
 C.StoreName = "CCSS_Production_v1"
 C.SaveInterval = 60
@@ -33,7 +34,42 @@ C.Upgrades = {
  Disguise = { BaseCost = 50, Growth = 1.85, Max = 8, Description = "Suspicion rises 7% slower per level." },
  Terminal = { BaseCost = 75, Growth = 1.95, Max = 8, Description = "Bank cards for 6% more per level." },
 }
-C.UpgradeOrder = { "Sleight", "Focus", "Capacity", "Sneakers", "Disguise", "Terminal" }
+C.Upgrades.Composure = { BaseCost = 90, Growth = 1.9, Max = 6, Description = "Reduces interaction Heat by 4% per level." }
+C.Upgrades.Gadgets = { BaseCost = 125, Growth = 2.1, Max = 4, Description = "Unlocks a confetti decoy. Higher levels add charges and reduce cooldown." }
+C.Upgrades.Appraisal = { BaseCost = 110, Growth = 1.95, Max = 6, Description = "Adds 4% rarity luck per level, weighted toward higher rarities." }
+C.Upgrades.Sleight.Description = "Shortens each timing stage; opens harder districts' targets."
+C.UpgradeOrder = { "Sleight", "Focus", "Capacity", "Sneakers", "Disguise", "Terminal", "Composure", "Gadgets", "Appraisal" }
+C.UpgradeRep = {0,0,20,50,100,200,400,650}
+C.UpgradeRanks = {"DIY", "Streetwise", "Professional", "Legendary"}
+C.Approaches = {
+ Careful = { Width = 1.15, Duration = 1.12, Heat = 0.8, Value = 1, Luck = 1, Description = "Wider zones, longer stages, 20% less Heat." },
+ Bold = { Width = 0.85, Duration = 0.9, Heat = 1.4, Value = 1.2, Luck = 1.15, Description = "Narrower zones, faster stages, +20% card value, +15% rarity weights, 40% more Heat." },
+}
+C.TargetStyles = {
+ Daydreamer = { Name = "Daydreamer", Stages = 1, Width = 1.08, Luck = 1, Value = 1, Speed = 3.4, Flavor = "Busy counting imaginary pigeons." },
+ Commuter = { Name = "Commuter", Stages = 2, Width = 1, Luck = 1.1, Value = 1.05, Speed = 5, Flavor = "Late for a meeting about meetings." },
+ Collector = { Name = "Card Collector", Stages = 2, Width = 0.95, Luck = 1.5, Value = 1.1, Speed = 3.8, Flavor = "Owns several extremely fictional cards." },
+ VIP = { Name = "Fancy VIP", Stages = 3, Width = 0.9, Luck = 1.35, Value = 1.25, Speed = 4.2, Flavor = "Pays for everything with royal raccoon treats." },
+}
+C.Stealing = { StageLead = 0.6, Drift = 0.055, ComboCap = 5, ComboValue = 0.03, Composure = 0.04, Appraisal = 0.04, RaritySlope = 0.45, CancelHeat = 10 }
+C.Gadget = { BaseCharges = 1, ChargeLevels = 2, Cooldown = 28, CooldownPerLevel = 3, DistractSeconds = 3.5, HeatRelief = 12 }
+C.HideoutOrder = {"Lounge", "Workshop", "Display", "Network"}
+C.HideoutUpgrades = {
+ Lounge = { Name = "Recovery Lounge", BaseCost = 90, Growth = 2.6, Max = 3, Rep = 0, Description = "+4 Heat recovery per second in safe rooms per level." },
+ Workshop = { Name = "Gadget Workshop", BaseCost = 160, Growth = 2.6, Max = 3, Rep = 20, Description = "+1 decoy charge at the supply bench per level. Requires Gadgets to use." },
+ Display = { Name = "Collector Gallery", BaseCost = 140, Growth = 2.6, Max = 3, Rep = 20, Description = "+2% banking value per level after five discoveries; adds personal trophy displays." },
+ Network = { Name = "Courier Network", BaseCost = 220, Growth = 2.8, Max = 3, Rep = 30, Description = "Unlocks hideout travel. Level 2 reaches every open district; level 3 lowers fares further." },
+}
+C.Hideout = { Width = 58, Depth = 44, SafeRecovery = 4, DisplayBonus = 0.02, DisplayDiscoveries = 5, TravelHeat = 20, TravelFare = 20, TravelDiscount = 0.2 }
+C.SecretNames = {"Lost Crumb", "Banana Blueprint", "Goblin Keepsake"}
+C.SecretHints = {"Look behind the western storefront.", "Search the eastern courtyard.", "Follow the back lane past the shops."}
+C.Secrets = {}
+for district=1,5 do
+ for n=1,3 do
+  local id=string.format("S%d_%d",district,n)
+  C.Secrets[id]={Name=C.SecretNames[n], District=district, Hint=C.SecretHints[n], Cash=35+district*25, Rep=4+district}
+ end
+end
 C.Districts = {
  { Name = "Starter Street", Rep = 0, Cash = 0, Difficulty = 1, Equipment = 0, Color = Color3.fromRGB(110,202,179), Landmark = "CRUMB MART", Weights = {74,22,4,0,0,0}, GuardSpeed = 13, Detection = 28 },
  { Name = "Shopping Plaza", Rep = 20, Cash = 120, Difficulty = 2, Equipment = 1, Color = Color3.fromRGB(229,157,117), Landmark = "BANANA ARCADE", Weights = {40,38,18,4,0,0}, GuardSpeed = 15, Detection = 33 },
