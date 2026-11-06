@@ -1,7 +1,8 @@
 --!strict
-export type Loot = { Id: string, Variant: string }
+export type Loot = { Id: string, Variant: string, Quality: number? }
 export type Settings = { Music: number, Effects: number, ReducedMotion: boolean, Shake: boolean }
 export type Profile = {
+ Hideout: {[string]: number}, Secrets: {[string]: boolean}, Stats: {[string]: number},
  Schema: number, Cash: number, Reputation: number, Upgrades: {[string]: number},
  Districts: {[string]: boolean}, Collection: {[string]: boolean}, Milestones: {[string]: boolean},
  Starter: number, StarterProgress: number, Daily: {Day: number, Progress: {[string]: number}, Claimed: {[string]: boolean}},

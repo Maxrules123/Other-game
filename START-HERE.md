@@ -1,6 +1,6 @@
 # Get the game running on your new PC
 
-This is a fresh project because the supplied workspace had no existing repository or Rojo setup. It contains a playable implementation, but it still needs the Roblox Studio checks in TESTING.md before release.
+This is a fresh project because the supplied workspace had no existing repository or Rojo setup. It contains the Clubhouse Update implementation, but it still needs the Roblox Studio checks in TESTING.md before release.
 
 ## Fastest way: open the included place
 
@@ -9,7 +9,7 @@ This is a fresh project because the supplied workspace had no existing repositor
 3. Press **Play**. The city is generated when the server starts. Seeing an empty edit view before Play is expected.
 4. Walk to a tourist across from the mint hideout. Use **E**, the controller **X** button, or the touch prompt.
 5. Stop the moving timing marker in the mint zone with **Space**, **A**, or the large **STOP** button. A gold-center hit improves rarity odds.
-6. Bring cards to the mint **Hideout Terminal**, bank them, then buy **Sleight** at the equipment kiosk. The objective banner guides the rest.
+6. Choose **Careful** in the scout preview; later targets have up to three stages. Bring cards to the mint **Hideout Terminal**, bank them, then buy **Sleight** at the equipment kiosk. The objective banner guides the rest.
 7. Stop the test before editing scripts. Use **File → Publish to Roblox** when you want to save the experience to your account. Publishing is your action; this delivery has not published anything.
 
 **Studio uses temporary test profiles by default.** Leaving and rejoining a Studio test resets those test profiles. Published servers use the production DataStore automatically.
@@ -48,6 +48,12 @@ Rojo's installation documentation: https://rojo.space/docs/v7/getting-started/in
 - Test production persistence in a private published experience first. Its server sessions save normally without Studio API access.
 - If you intentionally test actual persistence *inside Studio*, use a separate test experience, change `Config.StoreName` to a development-only name, set `StudioTestData = false`, publish the place, and enable **Game Settings → Security → Enable Studio Access to API Services**. Restore the default development mode afterwards. Do not point this test configuration at a live production store.
 - A profile-load failure disconnects the player with a useful message instead of substituting or saving a fresh profile. Concurrent sessions are blocked by a renewable lease.
+
+## Clubhouse Update
+
+The repository ZIP contains the source directly in the extracted root folder. The separate CreditCardStealer.zip bundle contains the source under CreditCardStealer/. Open whichever folder contains default.project.json when using Rojo.
+
+Try the practice arcade, nine equipment tracks, Hideout facility upgrades, supply bench, courier board, and fifteen city secrets. Use **G / R1 / the DECOY button** after buying Gadgets and restocking. Read UPGRADE-GUIDE.md for exact effects. Existing schema-1 saves are migrated automatically; clubhouse improvements, secrets and career stats persist across New Identity.
 
 ## Controls
 

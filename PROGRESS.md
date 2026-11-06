@@ -22,3 +22,13 @@
   - Pending: actual Vault Run playtest, performance profiling, permitted audio assets.
 
 **Status:** implemented source and build artifacts delivered; runtime acceptance is pending Studio validation. Checklist ticks mean implementation exists, not that unperformed Roblox tests passed.
+
+
+## Clubhouse Update implementation
+
+- [x] Rebuilt connected blocks, fifteen open-entry furnished shops, district courtyards, alleys, back-lane props, five safe rooms, fifteen secrets, 45 NPC routes and fifteen guards.
+- [x] Added scouting/personality previews, careful/bold approaches, phased server scoring, fresh tokens, drift/reverse/bounce patterns, full-clear rewards and streak quality.
+- [x] Added three equipment tracks, tier previews/requirements, active decoys, permanent home upgrades, practice, travel, personal decorations, journal and career stats.
+- [x] Added backward-compatible schema-2 defaults and tests for permanent progression through prestige.
+- [x] Compiled all nineteen sources and built updated place/package. Passed 183 domain and 362 city-generation assertions using engine mocks.
+- [ ] Roblox Studio visual, collision, pathfinding, multiplayer/device and live persistence checks remain pending. See TESTING.md.

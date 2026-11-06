@@ -61,7 +61,7 @@ function U:Init(remote: RemoteEvent, audio: any, effects: any)
  local nav=Instance.new("ScrollingFrame"); nav.Name="Navigation"; nav.Size=UDim2.new(1,0,0,54); nav.Position=UDim2.new(0,0,1,-58); nav.BackgroundColor3=P.Charcoal; nav.BorderSizePixel=0; nav.ScrollBarThickness=3; nav.AutomaticCanvasSize=Enum.AutomaticSize.X; nav.CanvasSize=UDim2.new(); nav.ScrollingDirection=Enum.ScrollingDirection.X; nav.Parent=root; round(nav)
  local navList=list(nav,6); navList.FillDirection=Enum.FillDirection.Horizontal; navList.VerticalAlignment=Enum.VerticalAlignment.Center
  local navPad=Instance.new("UIPadding"); navPad.PaddingLeft=UDim.new(0,6); navPad.PaddingRight=UDim.new(0,6); navPad.Parent=nav
- local tabs={"Pockets","Index","Upgrades","Districts","Missions","Settings"}
+ local tabs={"Pockets","Index","Upgrades","Hideout","Districts","Missions","Settings"}
  self.Nav={}
  for _,name in tabs do self.Nav[name]=button(nav,name,UDim2.fromOffset(106,44),nil,function() self:Open(name) end,P.Panel); self.Nav[name].TextColor3=P.White end
  local menu=frame(root,"Menu",UDim2.new(1,0,1,-254),UDim2.fromOffset(0,194),P.Charcoal); round(menu); stroke(menu); menu.Visible=false; self.Menu=menu
@@ -76,14 +76,17 @@ function U:Init(remote: RemoteEvent, audio: any, effects: any)
  local modal=Instance.new("TextButton"); modal.Name="Modal backdrop"; modal.Size=UDim2.fromScale(1,1); modal.BackgroundColor3=Color3.new(); modal.BackgroundTransparency=0.35; modal.Text=""; modal.AutoButtonColor=false; modal.Modal=true; modal.Selectable=false; modal.ZIndex=30; modal.Visible=false; modal.Parent=gui; self.Modal=modal
  local dialog=frame(modal,"Dialog",UDim2.new(1,-36,0,310),UDim2.fromScale(0.5,0.5),P.Charcoal); dialog.AnchorPoint=Vector2.new(0.5,0.5); dialog.ZIndex=31; round(dialog,18); stroke(dialog,P.Purple)
  local constraint=Instance.new("UISizeConstraint"); constraint.MaxSize=Vector2.new(520,310); constraint.Parent=dialog; self.Dialog=dialog
- self.DialogTitle=text(dialog,"",20,P.Gold,UDim2.new(1,-32,0,48),UDim2.fromOffset(16,12)); self.DialogTitle.ZIndex=32
+ self.DialogTitle=text(dialog,"",20,P.Gold,UDim2.new(1,-78,0,48),UDim2.fromOffset(16,12)); self.DialogTitle.ZIndex=32
+ local dismiss=button(dialog,"X",UDim2.fromOffset(44,44),UDim2.new(1,-54,0,8),function() self:HideDialog() end,P.Panel); dismiss.TextColor3=P.White; dismiss.ZIndex=32
  local dialogScroll=Instance.new("ScrollingFrame"); dialogScroll.Name="Explanation"; dialogScroll.BackgroundTransparency=1; dialogScroll.BorderSizePixel=0; dialogScroll.Size=UDim2.new(1,-32,1,-142); dialogScroll.Position=UDim2.fromOffset(16,64); dialogScroll.AutomaticCanvasSize=Enum.AutomaticSize.Y; dialogScroll.CanvasSize=UDim2.new(); dialogScroll.ScrollBarThickness=4; dialogScroll.ZIndex=32; dialogScroll.Parent=dialog
  self.DialogScroll=dialogScroll
  self.DialogText=text(dialogScroll,"",13,P.White,UDim2.new(1,-10,0,0)); self.DialogText.AutomaticSize=Enum.AutomaticSize.Y; self.DialogText.TextYAlignment=Enum.TextYAlignment.Top; self.DialogText.ZIndex=32
  self.DialogConfirm=button(dialog,"Continue",UDim2.new(0.6,-22,0,48),UDim2.new(0,16,1,-64),function() self:ConfirmDialog() end,P.Mint); self.DialogConfirm.ZIndex=32
- self.DialogCancel=button(dialog,"Cancel",UDim2.new(0.4,-14,0,48),UDim2.new(0.6,0,1,-64),function() self:HideDialog() end,P.Panel); self.DialogCancel.TextColor3=P.White; self.DialogCancel.ZIndex=32
+ self.DialogCancel=button(dialog,"Cancel",UDim2.new(0.4,-14,0,48),UDim2.new(0.6,0,1,-64),function() local action=self.DialogCancelAction; self:HideDialog(); if action then action() end end,P.Panel); self.DialogCancel.TextColor3=P.White; self.DialogCancel.ZIndex=32
  self:BuildTiming()
  self:BuildReveal()
+ self.DecoyButton=button(root,"DECOY / G",UDim2.fromOffset(114,44),UDim2.new(1,-114,1,-180),function() self:Send("Decoy") end,P.Purple)
+ self.DecoyButton.Visible=false
  local dialogScale=Instance.new("UIScale"); dialogScale.Parent=dialog
  local timingScale=Instance.new("UIScale"); timingScale.Parent=self.TimingLayer:FindFirstChild("Timing card")
  local function resize()
@@ -112,12 +115,13 @@ function U:Notice(message: string, sound: string?)
 end
 function U:ShowDialog(title: string, message: string, confirm: string, callback: ()->(), canCancel: boolean?)
  self:Close(); self:SkipReveal()
+ self.DialogCancel.Text="Cancel"; self.DialogCancelAction=nil; self.DialogCancel.BackgroundColor3=P.Panel; self.DialogCancel.TextColor3=P.White
  self.DialogTitle.Text=title; self.DialogText.Text=message; self.DialogConfirm.Text=confirm; self.DialogCancel.Visible=canCancel==true
  self.DialogScroll.CanvasPosition=Vector2.zero
  self.DialogCallback=callback; self.Modal.Visible=true; self:Focus(self.DialogConfirm)
 end
 function U:HideDialog()
- self.Modal.Visible=false; self.DialogCallback=nil; self:Focus(nil)
+ self.Modal.Visible=false; self.DialogCallback=nil; self.DialogCancelAction=nil; self:Focus(nil)
 end
 function U:ConfirmDialog()
  local callback=self.DialogCallback; self:HideDialog(); if callback then callback() end
@@ -146,6 +150,9 @@ function U:Signature(): string
  local p=self.State.Profile
  local bits={tostring(p.Cash),tostring(p.Reputation),tostring(p.Starter),tostring(p.StarterProgress),tostring(#self.State.Loot),tostring(p.Daily.Day),tostring(p.Identities),tostring(self.State.Vault~=nil)}
  for _,name in C.UpgradeOrder do table.insert(bits,tostring(p.Upgrades[name])) end
+ for _,name in C.HideoutOrder do table.insert(bits,tostring(p.Hideout[name])) end
+ local secrets=0; for _ in p.Secrets do secrets+=1 end; table.insert(bits,tostring(secrets))
+ table.insert(bits,tostring(p.Stats.Successes)); table.insert(bits,tostring(p.Stats.BestCombo))
  for i=1,5 do table.insert(bits,tostring(p.Districts[tostring(i)])) end
  local count=0; for _ in p.Collection do count+=1 end; table.insert(bits,tostring(count))
  for i=1,#C.DailyPool do table.insert(bits,tostring(p.Daily.Progress[tostring(i)])); table.insert(bits,tostring(p.Daily.Claimed[tostring(i)])) end
@@ -168,7 +175,12 @@ function U:RenderMenu()
   text(row,#self.State.Loot.." / "..R.capacity(p.Upgrades.Capacity,C).." cards · $"..comma(self.State.Value),16,P.Gold,UDim2.new(1,-24,0,28),UDim2.fromOffset(12,4))
   button(row,"Bank at hideout",UDim2.new(1,-24,0,32),UDim2.fromOffset(12,32),function() self:Send("Bank") end,P.Mint)
   if #self.State.Loot==0 then self:Note("Your pockets are empty. Look for cartoon tourists near Crumb Mart.") end
-  for _,loot in self.State.Loot do self:CardRow(loot.Id,loot.Variant,true) end
+  for _,loot in self.State.Loot do
+   local multiplier=1
+   for _,variant in C.Variants do if variant.Name==loot.Variant then multiplier=variant.Multiplier end end
+   local amount=R.lootValue(C.Cards[loot.Id].Value,multiplier*(loot.Quality or 1)*R.galleryBonus(p,C),p.Upgrades.Terminal,p.Identities,C)
+   self:CardRow(loot.Id,loot.Variant.." ×"..multiplier.." / Quality ×"..string.format("%.2f",loot.Quality or 1).." / Bank $"..comma(amount),true)
+  end
  elseif self.Current=="Index" then
   local total=0; local count=0
   for _ in C.Cards do total+=#C.Variants end
@@ -192,15 +204,22 @@ function U:RenderMenu()
   self:Note("Buy upgrades inside any mint hideout. Cash is spent; Reputation is kept. Sleight unlocks tougher targets. New Identity bank bonus: +"..math.floor((R.identityBonus(p.Identities,C)-1)*100+0.5).."%.")
   for _,name in C.UpgradeOrder do
    local def=C.Upgrades[name]; local level=p.Upgrades[name]; local price=R.upgradeCost(def.BaseCost,def.Growth,level)
-   local row=self:Row(140)
+   local row=self:Row(202)
    text(row,(if name=="Terminal" then "HIDEOUT TERMINAL" else string.upper(name)).." · "..level.." / "..def.Max,15,P.White,UDim2.new(1,-24,0,30),UDim2.fromOffset(12,6))
-   text(row,def.Description,12,P.Muted,UDim2.new(1,-24,0,42),UDim2.fromOffset(12,36))
-   button(row,if level>=def.Max then "MAX LEVEL" else "Upgrade · $"..comma(price),UDim2.new(1,-24,0,44),UDim2.fromOffset(12,86),function() self:Send("Buy",name) end,if p.Cash>=price and level<def.Max then P.Mint else P.Muted)
+   local rep=C.UpgradeRep[level+1] or 0
+   local rank=C.UpgradeRanks[math.clamp(math.ceil(math.max(1,level)/2),1,#C.UpgradeRanks)]
+   text(row,rank.." · "..def.Description,12,P.Muted,UDim2.new(1,-24,0,42),UDim2.fromOffset(12,36))
+   text(row,"NOW / "..R.upgradeEffect(name,level,C).."\nNEXT / "..(if level>=def.Max then "Fully upgraded" else R.upgradeEffect(name,level+1,C)).."\nRequires "..rep.." REP (kept)",11,P.Mint,UDim2.new(1,-24,0,64),UDim2.fromOffset(12,82))
+   local rail=frame(row,"Upgrade progress",UDim2.new(1,-24,0,4),UDim2.fromOffset(12,149),P.Charcoal); round(rail,2)
+   frame(rail,"Progress",UDim2.fromScale(level/def.Max,1),nil,P.Purple)
+   button(row,if level>=def.Max then "MAX LEVEL" else "Upgrade · $"..comma(price),UDim2.new(1,-24,0,44),UDim2.fromOffset(12,158),function() self:Send("Buy",name) end,if p.Cash>=price and p.Reputation>=rep and level<def.Max then P.Mint else P.Muted)
   end
   local row=self:Row(112)
   text(row,"NEW IDENTITY · "..p.Identities.." earned",15,P.Gold,UDim2.new(1,-24,0,30),UDim2.fromOffset(12,6))
   text(row,"All districts + all starter jobs + $100,000 + 1,000 REP",11,P.Muted,UDim2.new(1,-24,0,26),UDim2.fromOffset(12,34))
   button(row,"Review New Identity",UDim2.new(1,-24,0,40),UDim2.fromOffset(12,64),function() self:Send("PrestigeInfo") end,P.Gold)
+ elseif self.Current=="Hideout" then
+  self:RenderHideout()
  elseif self.Current=="Districts" then
   self:Note("One connected city. Travel east along the road. Unlocks spend Cash and require Reputation; your Reputation remains yours.")
   for i,d in C.Districts do
@@ -243,9 +262,9 @@ function U:RenderMenu()
    text(row,title,15,P.White,UDim2.new(1,-24,0,34),UDim2.fromOffset(12,4))
    button(row,if p.Settings[key] then "ON · toggle" else "OFF · toggle",UDim2.new(1,-24,0,44),UDim2.fromOffset(12,44),function() self:Send("Setting",{Key=key,Value=not p.Settings[key]}) end,P.Purple)
   end
-  self:Note("CONTROLS · E / X / tap: interact. Space / A / tap: stop timing. Tab / Y: menus. Escape / B: close. Use the bottom tabs for every panel.")
+  self:Note("CONTROLS · E / X / tap: interact. Space / A / tap: stop timing. Tab / Y: menus. G / R1: decoy. Escape / B: close. Use the bottom tabs for every panel.")
   self:Note("Audio slots are ready; permitted sound assets have not been configured. UI feedback remains visual.")
-  self:Note("Identity badges: "..p.Identities..". Collection discoveries, identity badges, settings, milestone claims, and daily progress survive New Identity.",P.Gold)
+  self:Note("Identity badges: "..p.Identities..". Collection discoveries, identity badges, settings, milestone claims, daily progress, clubhouse upgrades, city secrets, and career statistics survive New Identity.",P.Gold)
  end
  self.Body.CanvasPosition=position
  if hadFocus then
@@ -276,7 +295,9 @@ function U:UpdateState(packet: any)
  self.HeatText.Text="HEAT "..heat.." / 100 · "..(if packet.Chase then "CHASE! BREAK SIGHT" elseif heat>=55 then "SECURITY ALERT" elseif heat>=25 then "GETTING WARM" else "COOL")
  self.HeatText.TextColor3=color
  self.Effects:Tween(self.HeatFill,{Size=UDim2.fromScale(packet.Heat/100,1),BackgroundColor3=color},0.25)
- self.Immunity.Text=if packet.Immunity>0 then "Security grace · "..math.ceil(packet.Immunity).."s" else "Banked Cash and upgrades are always safe"
+ self.Immunity.Text=(if packet.Immunity>0 then "Grace "..math.ceil(packet.Immunity).."s / " else "").."STREAK "..packet.Combo.." / "..C.Stealing.ComboCap.." · DECOYS "..packet.Gadget.Charges.." / "..packet.Gadget.Max
+ self.DecoyButton.Text=if packet.Gadget.Cooldown>0 then "DECOY "..math.ceil(packet.Gadget.Cooldown).."s" else "DECOY / "..packet.Gadget.Charges
+ if self.HideoutController then self.HideoutController:Update(packet) end
  if packet.Vault then self.Objective.Text="VAULT RUN · "..math.ceil(packet.Vault.Remaining).."s · "..packet.Vault.Stage.." / 5 gates\n"..(if packet.Vault.Collected then "Gold card secured. Reach the mint exit!" else "Wait for faded beams → collect the gold card → exit")
  else
   local job=C.StarterMissions[p.Starter]
@@ -287,6 +308,8 @@ function U:UpdateState(packet: any)
  self:RenderMenu()
 end
 function U:UpdateContext()
+ if self.State then self.DecoyButton.Visible=self.State.Profile.Upgrades.Gadgets>0 and not self.Current and not self.Timing and not self.Modal.Visible and not self.State.Vault end
+ if self.HideoutController and self.State then self.HideoutController:RefreshSecrets(self.State.Profile) end
  if not self.State or self.Current or self.Timing or self.Modal.Visible then self.Context.Text=""; return end
  if self.State.Vault then self.Context.Text="Beams bright = WAIT · Beams faded = GO · Missions to leave"; return end
  local char=Players.LocalPlayer.Character; local root=char and char:FindFirstChild("HumanoidRootPart")
@@ -303,15 +326,16 @@ function U:UpdateContext()
   local id=closest:GetAttribute("TargetId"); local district=tonumber(string.match(id,"D(%d+)")) or 1
   local need=C.Districts[district].Equipment
   local sleight=self.State.Profile.Upgrades.Sleight
+  local style=closest:GetAttribute("Style") or "Daydreamer"
   local duration=(C.Timing.BaseDuration-district*C.Timing.DistrictSpeed)*(1-sleight*C.Timing.SleightSpeed)
-  self.Context.Text=string.format("DIFFICULTY %d · %.1fs · SUSPICION %d%%\n%s",district,duration,closest:GetAttribute("Suspicion") or 0,if sleight>=need then "EQUIPMENT READY · E / X / tap prompt" else "EQUIPMENT TOO LOW · Need Sleight "..need)
+  self.Context.Text=string.format("DIFFICULTY %d · %.1fs/stage · SUSPICION %d%%\n%s",district,duration,closest:GetAttribute("Suspicion") or 0,if sleight>=need then C.TargetStyles[style].Name.." · SCOUT / CHOOSE APPROACH" else "EQUIPMENT TOO LOW · Need Sleight "..need)
  else self.Context.Text=if #self.State.Loot>0 then "Mint hideout = bank cards + recover Heat" else "Find a tourist near the colorful sidewalks" end
 end
 function U:BuildTiming()
  local layer=frame(self.Gui,"Timing layer",UDim2.fromScale(1,1),nil,P.Charcoal); layer.BackgroundTransparency=0.5; layer.Visible=false; layer.ZIndex=40; self.TimingLayer=layer
  local box=frame(layer,"Timing card",UDim2.new(1,-32,0,292),UDim2.fromScale(0.5,0.52),P.Charcoal); box.AnchorPoint=Vector2.new(0.5,0.5); box.ZIndex=41; round(box,18); stroke(box,P.Purple)
  local constraint=Instance.new("UISizeConstraint"); constraint.MaxSize=Vector2.new(600,292); constraint.Parent=box
- local t=text(box,"POCKET TRICK",20,P.Mint,UDim2.new(1,-32,0,34),UDim2.fromOffset(16,12)); t.ZIndex=42
+ local t=text(box,"POCKET TRICK",20,P.Mint,UDim2.new(1,-32,0,34),UDim2.fromOffset(16,12)); t.ZIndex=42; self.TimingTitle=t
  self.TimingCaption=text(box,"Stop the marker inside the mint zone.",13,P.Muted,UDim2.new(1,-32,0,40),UDim2.fromOffset(16,51)); self.TimingCaption.ZIndex=42
  local track=frame(box,"Track",UDim2.new(1,-40,0,44),UDim2.fromOffset(20,104),P.Panel); round(track,8); track.ZIndex=42
  self.Zone=frame(track,"Success zone",UDim2.fromScale(0.2,1),nil,P.Mint); self.Zone.BackgroundTransparency=0.2; self.Zone.ZIndex=43; round(self.Zone,6)
@@ -324,14 +348,20 @@ end
 function U:StartTiming(packet: any)
  self:Close(); self:SkipReveal(); self:HideDialog(); self.Toast.Visible=false
  self:EndTiming(); self.Timing=packet; self.Timing.Submitted=false
- self.TimingLayer.Visible=true; self.TimingCaption.Text="Land in mint. Gold center = better rarity odds."
+ self.TimingLayer.Visible=true
+ self.TimingTitle.Text=(if packet.Practice then "PRACTICE" else string.upper(packet.Approach).." TRICK").." / "..packet.Stage.." OF "..packet.Stages
+ self.TimingCaption.Text=string.upper(packet.Pattern).." · "..(if packet.Stage==1 then "Mint = good. Gold = perfect. Clear every stage." else (packet.LastGrade or "Good").."! Now follow the drifting mint zone.")
+ if packet.Stage>1 then self.Audio:Play("Success") end
  self.Zone.Size=UDim2.fromScale(packet.Width,1); self.Zone.Position=UDim2.fromScale(packet.Center-packet.Width/2,0)
  self.Perfect.Size=UDim2.fromScale(packet.Width*0.4,1); self.Perfect.Position=UDim2.fromScale(packet.Center-packet.Width*0.2,0)
  self:Focus(self.StopButton)
  self.TimingConnection=RunService.RenderStepped:Connect(function()
   if not self.Timing or self.Timing.Submitted then return end
   local elapsed=workspace:GetServerTimeNow()-packet.Start
-  self.Marker.Position=UDim2.new(R.position(elapsed,packet.Duration),0,0,-6)
+  self.Marker.Position=UDim2.new(R.cursor(elapsed,packet.Duration,packet.Pattern),0,0,-6)
+  local center=R.zone(elapsed,packet.Duration,packet.Center,packet.Drift,packet.Width)
+  self.Zone.Position=UDim2.fromScale(center-packet.Width/2,0)
+  self.Perfect.Position=UDim2.fromScale(center-packet.Width*0.2,0)
   self.StopButton.Text=if elapsed<0 then "GET READY…" else "STOP · SPACE / A"
   if elapsed>packet.Duration+0.4 then self.TimingCaption.Text="Waiting for server result…" end
  end)
@@ -358,7 +388,7 @@ function U:ShowReveal(packet: any)
  self.RevealId+=1; local id=self.RevealId
  local card=C.Cards[packet.Loot.Id]
  self.Reveal.Visible=true; self.RevealHeader.Text=string.upper(packet.Grade.." / "..C.Rarities[card.Rarity].." / "..packet.Loot.Variant)
- self.RevealHeader.TextColor3=C.RarityColors[card.Rarity]; self.RevealBrand.Text=card.Brand; self.RevealName.Text=card.Name
+ self.RevealHeader.TextColor3=C.RarityColors[card.Rarity]; self.RevealBrand.Text=card.Brand; self.RevealName.Text=card.Name.."\nQuality ×"..string.format("%.2f",packet.Loot.Quality or 1).." · Streak "..(packet.Combo or 0)
  self.Reveal.BackgroundColor3=if packet.Loot.Variant=="Golden" then Color3.fromRGB(65,53,31) elseif packet.Loot.Variant=="Glitched" then Color3.fromRGB(50,30,70) elseif packet.Loot.Variant=="Foil" then Color3.fromRGB(30,57,65) else P.Panel
  self.Audio:Play(if card.Rarity>=3 then "Reveal" else "Success")
  local root=Players.LocalPlayer.Character and Players.LocalPlayer.Character:FindFirstChild("HumanoidRootPart")
@@ -367,8 +397,48 @@ function U:ShowReveal(packet: any)
  if packet.Milestone>0 then self:Notice("Collection milestone · +$"..packet.Milestone,"Success") end
  task.delay(3,function() if self.RevealId==id then self:SkipReveal() end end)
 end
+function U:RenderHideout()
+ local p=self.State.Profile; local discoveries=0; local found=0
+ for _ in p.Collection do discoveries+=1 end
+ for _ in p.Secrets do found+=1 end
+ self:Note("CRUMB CLUB · Your clubhouse improvements survive New Identity. Your gallery and decorations are personal; other players keep their own progress.",P.Mint)
+ self:Note("CAREER · "..p.Stats.Successes.." cards secured · "..p.Stats.Perfects.." perfect tricks · Best streak "..p.Stats.BestCombo.."\n$"..comma(p.Stats.Banked).." banked · "..found.." / 15 secrets · "..discoveries.." card discoveries",P.Gold)
+ local tools=self:Row(160)
+ text(tools,"PRACTICE & SUPPLIES",16,P.White,UDim2.new(1,-24,0,30),UDim2.fromOffset(12,4))
+ text(tools,"Use the practice arcade for three risk-free timing stages. The mint bench refills decoys; use G / R1 / DECOY outside.",12,P.Muted,UDim2.new(1,-24,0,44),UDim2.fromOffset(12,34))
+ button(tools,"Practice at arcade",UDim2.new(0.5,-16,0,54),UDim2.fromOffset(12,92),function() self:Send("Practice") end,P.Gold)
+ button(tools,"Restock at bench",UDim2.new(0.5,-16,0,54),UDim2.new(0.5,4,0,92),function() self:Send("Resupply") end,P.Mint)
+ for _,name in C.HideoutOrder do
+  local def=C.HideoutUpgrades[name]; local level=p.Hideout[name]; local price=R.upgradeCost(def.BaseCost,def.Growth,level)
+  local row=self:Row(160)
+  text(row,def.Name.." · "..level.." / "..def.Max,15,P.Mint,UDim2.new(1,-24,0,30),UDim2.fromOffset(12,5))
+  text(row,def.Description.."\nRequires "..def.Rep*(level+1).." REP · Permanent through prestige",12,P.Muted,UDim2.new(1,-24,0,66),UDim2.fromOffset(12,37))
+  button(row,if level>=def.Max then "ROOM COMPLETE" else "Improve · $"..comma(price),UDim2.new(1,-24,0,44),UDim2.fromOffset(12,108),function() self:Send("HideoutBuy",name) end,if level<def.Max and p.Cash>=price and p.Reputation>=def.Rep*(level+1) then P.Purple else P.Muted)
+ end
+ self:Note("COURIER ROUTES · Use the route board at the back of any clubhouse. Bank all cards, lose security, and cool below 20 Heat. Only unlocked districts are available.",P.Gold)
+ for i,d in C.Districts do
+  local required=math.max(1,math.ceil((i-1)/2)); local fare=R.travelCost(p.Hideout.Network,i,C)
+  local row=self:Row(104)
+  text(row,d.Name.." · Network "..required,14,d.Color,UDim2.new(1,-24,0,36),UDim2.fromOffset(12,4))
+  button(row,if p.Districts[tostring(i)] then "Book courier · $"..fare else "DISTRICT LOCKED",UDim2.new(1,-24,0,48),UDim2.fromOffset(12,47),function() self:Send("Travel",i) end,if p.Hideout.Network>=required and p.Districts[tostring(i)] then P.Mint else P.Muted)
+ end
+ self:Note("CITY JOURNAL · Fifteen hidden souvenirs, three in every district. Each pays once and remains discovered through New Identity.",P.Mint)
+ for district=1,5 do for n=1,3 do
+  local id=string.format("S%d_%d",district,n); local def=C.Secrets[id]
+  self:Note((if p.Secrets[id] then "✓ DISCOVERED · " else "? ")..C.Districts[district].Name.." / "..def.Name.."\n"..(if p.Secrets[id] then "Saved to your clubhouse journal." else def.Hint.." $"..def.Cash.." + "..def.Rep.." REP"),if p.Secrets[id] then P.Mint else P.Muted)
+ end end
+end
 function U:Receive(kind: string, packet: any)
  if kind=="State" then self:UpdateState(packet)
+ elseif kind=="Scout" then
+  local style=C.TargetStyles[packet.Style]; local rarities={}
+  for i,weight in C.Districts[packet.District].Weights do if weight>0 then table.insert(rarities,C.Rarities[i]) end end
+  self:ShowDialog(packet.Name.." / "..style.Name,style.Flavor.."\n\n"..C.Districts[packet.District].Name.." · "..packet.Stages.." timing stages · Sleight "..packet.Requirement.." · Suspicion "..packet.Suspicion.."%\nPossible cards: "..table.concat(rarities,", ").."\n\nCAREFUL / "..C.Approaches.Careful.Description.."\n\nBOLD / "..C.Approaches.Bold.Description.."\n\nOne card is awarded only after every stage. Leaving or canceling a live trick loses your streak.","Careful",function() self:Send("Begin",{Id=packet.Id,Approach="Careful"}) end,true)
+  self.DialogCancel.Text="Bold +20%"; self.DialogCancel.BackgroundColor3=P.Gold; self.DialogCancel.TextColor3=P.Charcoal
+  self.DialogCancelAction=function() self:Send("Begin",{Id=packet.Id,Approach="Bold"}) end
+ elseif kind=="Decoy" then
+  local char=Players.LocalPlayer.Character; local root=char and char:FindFirstChild("HumanoidRootPart")
+  if root then self.Effects:Celebrate(root.Position,P.Purple) end
  elseif kind=="Notice" then self:Notice(packet.Text,packet.Sound)
  elseif kind=="Timing" then self:StartTiming(packet)
  elseif kind=="TimingEnd" then self:EndTiming()
@@ -377,7 +447,7 @@ function U:Receive(kind: string, packet: any)
   self:EndTiming(); self.Audio:Play("Capture"); self.Effects:Shake()
   self:ShowDialog(if packet.Died then "POCKETS DROPPED ON RESPAWN" else "BUSTED BY CARDBOARD SECURITY",packet.Lost.." unbanked cards lost ("..math.floor(packet.Fraction*100).."%, rounded up). "..packet.Kept.." remain in your pockets.\n\nYour Cash, upgrades, discoveries, and missions are safe. Respawning or capture returns you to a hideout with "..C.CaptureImmunity.." seconds of protection.","Back to the sidewalks",function() end,false)
  elseif kind=="PrestigeInfo" then
-  self:ShowDialog("NEW IDENTITY", "Requires all districts, all starter jobs, $100,000 and 1,000 REP.\n\nRESETS: all Cash, Reputation, upgrades, district access, carried cards, Heat, and starter jobs.\n\nKEEPS: card discoveries, cosmetics/identity badges, settings, milestone claims, and daily progress/claims.\n\nEARNS: identity badge and +5% bank value, capped at +50%. Confirmation expires in 30 seconds.","Confirm reset",function() self:Send("Prestige",packet.Token) end,true)
+  self:ShowDialog("NEW IDENTITY", "Requires all districts, all starter jobs, $100,000 and 1,000 REP.\n\nRESETS: all Cash, Reputation, upgrades, district access, carried cards, Heat, and starter jobs.\n\nKEEPS: card discoveries, cosmetics/identity badges, settings, milestone claims, daily progress/claims, clubhouse upgrades, city secrets, and career statistics.\n\nEARNS: identity badge and +5% bank value, capped at +50%. Confirmation expires in 30 seconds.","Confirm reset",function() self:Send("Prestige",packet.Token) end,true)
  end
 end
 return U

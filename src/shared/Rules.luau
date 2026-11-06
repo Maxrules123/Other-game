@@ -27,4 +27,51 @@ end
 function R.lootValue(base: number, variant: number, terminal: number, identities: number, config: any): number
  return math.floor(base * variant * (1 + terminal * config.TerminalPerLevel) * R.identityBonus(identities, config))
 end
+function R.cursor(elapsed: number, duration: number, pattern: string): number
+ local t=R.position(elapsed,duration)
+ if pattern=="Reverse" then return 1-t end
+ if pattern=="Bounce" then return 1-math.abs(1-2*t) end
+ return t
+end
+function R.zone(elapsed: number, duration: number, center: number, drift: number, width: number): number
+ return math.clamp(center+math.sin(R.position(elapsed,duration)*math.pi*2)*drift,width/2,1-width/2)
+end
+function R.stageGrade(elapsed: number, attempt: any): string
+ if elapsed<0 or elapsed>attempt.Duration then return "Miss" end
+ local center=R.zone(elapsed,attempt.Duration,attempt.Center,attempt.Drift,attempt.Width)
+ local distance=math.abs(R.cursor(elapsed,attempt.Duration,attempt.Pattern)-center)
+ if distance<=attempt.Width*0.2 then return "Perfect" end
+ if distance<=attempt.Width*0.5 then return "Good" end
+ return "Miss"
+end
+function R.stageCount(district: number, style: string, config: any): number
+ return math.clamp(config.TargetStyles[style].Stages+(if district>=4 then 1 else 0),1,3)
+end
+function R.heatScale(level: number, config: any): number return 1-level*config.Stealing.Composure end
+function R.rarityWeight(base: number, rarity: number, luck: number, config: any): number
+ if rarity<=1 then return base end
+ return base*(1+(luck-1)*(1+(rarity-2)*config.Stealing.RaritySlope))
+end
+function R.charges(profile: any, config: any): number
+ local level=profile.Upgrades.Gadgets
+ return if level==0 then 0 else config.Gadget.BaseCharges+math.floor(level/config.Gadget.ChargeLevels)+profile.Hideout.Workshop
+end
+function R.galleryBonus(profile: any, config: any): number
+ local count=0; for _ in profile.Collection do count+=1 end
+ return if count>=config.Hideout.DisplayDiscoveries then 1+profile.Hideout.Display*config.Hideout.DisplayBonus else 1
+end
+function R.travelCost(level: number, district: number, config: any): number
+ return math.floor(config.Hideout.TravelFare*(district-1)*(1-level*config.Hideout.TravelDiscount))
+end
+function R.upgradeEffect(name: string, level: number, config: any): string
+ if name=="Sleight" then return string.format("%d%% shorter stages · access rating %d",level*config.Timing.SleightSpeed*100,level)
+ elseif name=="Focus" then return string.format("+%.1f%% success window",level*config.Timing.FocusWidth*100)
+ elseif name=="Capacity" then return tostring(R.capacity(level,config)).." card slots"
+ elseif name=="Sneakers" then return string.format("%.1f movement speed",16+level*0.8)
+ elseif name=="Disguise" then return string.format("%d%% less lingering suspicion",level*config.Suspicion.DisguiseReduction*100)
+ elseif name=="Terminal" then return string.format("+%d%% banking value",level*config.TerminalPerLevel*100)
+ elseif name=="Composure" then return string.format("%d%% less interaction Heat",level*config.Stealing.Composure*100)
+ elseif name=="Appraisal" then return string.format("+%d%% rarity luck (stronger on higher tiers)",level*config.Stealing.Appraisal*100)
+ else return if level==0 then "Decoy locked" else string.format("%d base charges · %ds cooldown",config.Gadget.BaseCharges+math.floor(level/config.Gadget.ChargeLevels),config.Gadget.Cooldown-level*config.Gadget.CooldownPerLevel) end
+end
 return R

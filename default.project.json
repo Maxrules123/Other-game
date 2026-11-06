@@ -2,11 +2,52 @@
   "name": "Credit Card Stealer Simulator",
   "tree": {
     "$className": "DataModel",
-    "ReplicatedStorage": { "Shared": { "$path": "src/shared" } },
-    "ServerScriptService": { "GameServer": { "$path": "src/server" } },
-    "StarterPlayer": { "StarterPlayerScripts": { "GameClient": { "$path": "src/client" } } },
-    "Workspace": { "$properties": { "FilteringEnabled": true, "StreamingEnabled": true } },
-    "Lighting": { "$properties": { "ClockTime": 17, "Brightness": 2, "GlobalShadows": true, "Ambient": [0.35, 0.34, 0.45], "OutdoorAmbient": [0.5, 0.48, 0.6] } },
-    "SoundService": { "$properties": { "RespectFilteringEnabled": true } }
+    "ReplicatedStorage": {
+      "Shared": {
+        "$path": "src/shared"
+      }
+    },
+    "ServerScriptService": {
+      "GameServer": {
+        "$path": "src/server"
+      }
+    },
+    "StarterPlayer": {
+      "StarterPlayerScripts": {
+        "GameClient": {
+          "$path": "src/client"
+        }
+      }
+    },
+    "Workspace": {
+      "$properties": {
+        "FilteringEnabled": true,
+        "StreamingEnabled": true,
+        "StreamingMinRadius": 64,
+        "StreamingTargetRadius": 256
+      }
+    },
+    "Lighting": {
+      "$properties": {
+        "ClockTime": 17,
+        "Brightness": 2,
+        "GlobalShadows": true,
+        "Ambient": [
+          0.35,
+          0.34,
+          0.45
+        ],
+        "OutdoorAmbient": [
+          0.5,
+          0.48,
+          0.6
+        ]
+      }
+    },
+    "SoundService": {
+      "$properties": {
+        "RespectFilteringEnabled": true
+      }
+    }
   }
 }

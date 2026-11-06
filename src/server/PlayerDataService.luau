@@ -16,7 +16,7 @@ end
 local function defaults(): any
  local upgrades = {}
  for name in C.Upgrades do upgrades[name] = 0 end
- return { Schema = C.Schema, Cash = 0, Reputation = 0, Upgrades = upgrades, Districts = {["1"] = true}, Collection = {}, Milestones = {}, Starter = 1, StarterProgress = 0, Daily = {Day = -1, Progress = {}, Claimed = {}}, Identities = 0, Badges = {}, Settings = {Music = 0.35, Effects = 0.7, ReducedMotion = false, Shake = true} }
+ return { Schema = C.Schema, Cash = 0, Reputation = 0, Upgrades = upgrades, Districts = {["1"] = true}, Collection = {}, Milestones = {}, Secrets = {}, Hideout = {Lounge=0, Workshop=0, Display=0, Network=0}, Stats = {Attempts=0, Successes=0, Perfects=0, BestCombo=0, Banked=0, Escapes=0, VaultClears=0}, Starter = 1, StarterProgress = 0, Daily = {Day = -1, Progress = {}, Claimed = {}}, Identities = 0, Badges = {}, Settings = {Music = 0.35, Effects = 0.7, ReducedMotion = false, Shake = true} }
 end
 local function reconcile(value: any, template: any): any
  if type(value) ~= "table" then error("Profile has an invalid structure") end
