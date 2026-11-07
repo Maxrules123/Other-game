@@ -19,6 +19,7 @@ G.Vehicles=require(script.Parent.VehicleService)
 G.Environment=require(script.Parent.EnvironmentService)
 G.Traffic=require(script.Parent.TrafficService)
 G.Cosmetics=require(script.Parent.CosmeticService)
+G.Navigation=require(script.Parent.NavigationService)
 function G:Root(player: Player): BasePart?
  local char=player.Character
  local hum=if char then char:FindFirstChildOfClass("Humanoid") else nil
@@ -51,15 +52,21 @@ function G:Heat(player: Player, amount: number)
  s.Heat=math.clamp(s.Heat+amount,0,100); s.LastTrouble=os.clock()
 end
 function G:Begin(player: Player,id: string,approach: string?) self.Interaction:Begin(player,id,approach) end
-function G:Resolve(player: Player,token: string,expired: boolean?) self.Interaction:Resolve(player,token,expired) end
+function G:Resolve(player: Player,hit: any,expired: boolean?) self.Interaction:Resolve(player,hit,expired) end
 function G:Bank(player: Player) self.Processing:Deposit(player,false) end
+function G:Talk(player: Player,speaker: string)
+ local root=self:Root(player);local s=self.State[player];local def=C.Speakers[speaker];local position=self.World.QuestPositions[speaker]
+ if not root or not s or s.Attempt or s.Vault or not def or not position or (root.Position-position).Magnitude>18 or not self.Security:Visible(root.Position,position+Vector3.new(0,3,0)) then return end
+ s.Dialogue=s.Dialogue or {};local index=(s.Dialogue[speaker] or 0)%#def.Lines+1;s.Dialogue[speaker]=index
+ self.Remote:FireClient(player,"Dialogue",{Speaker=speaker,Role=def.Role,Text=def.Lines[index]})
+end
 function G:Quest(player: Player,action: string,id: string)
  local p=self.Data:Get(player); local root=self:Root(player); local s=self.State[player]; local def=C.Contracts[id]
  if not p or not root or not s or s.Attempt or s.Vault or not def then return end
  local pos=self.World.QuestPositions[def.Speaker]
- if not pos or (root.Position-pos).Magnitude>18 then self:Notify(player,"Talk to "..def.Speaker.." in their district courtyard."); return end
+ if not pos or (root.Position-pos).Magnitude>18 or not self.Security:Visible(root.Position,pos+Vector3.new(0,3,0)) then self:Notify(player,"Talk to "..def.Speaker.." in their district courtyard."); return end
  if action=="Accept" then
-  if self.Missions.accept(p,id) then self:Notify(player,"CONTRACT ACCEPTED / "..def.Title,"Success") else self:Notify(player,"Finish or pause your active contract and meet this contract's requirements.") end
+  if self.Missions.accept(p,id) then s.NavPin=nil;self:Notify(player,"CONTRACT ACCEPTED / "..def.Title,"Success") else self:Notify(player,"Finish or pause your active contract and meet this contract's requirements.") end
  elseif action=="Claim" and self.Missions.claimContract(p,id) then self:Notify(player,"CONTRACT COMPLETE / +$"..def.Cash.." / +"..def.Rep.." REP","Bank") end
 end
 function G:Buy(player: Player, name: string)
@@ -102,6 +109,7 @@ function G:Decoy(player: Player)
  if (s.GadgetReady or 0)>now then self:Notify(player,"Decoy cooling down: "..math.ceil(s.GadgetReady-now).."s."); return end
  s.GadgetCharges-=1; s.GadgetReady=now+C.Gadget.Cooldown-p.Upgrades.Gadgets*C.Gadget.CooldownPerLevel
  s.DecoyUntil=now+C.Gadget.DistractSeconds; s.Heat=math.max(0,s.Heat-C.Gadget.HeatRelief)
+ self.NPC:React(root.Position,"Distracted",18)
  self.Remote:FireClient(player,"Decoy",{})
  self:Notify(player,"CONFETTI DISTRACTION · Move! Nearby security loses your trail briefly.","Success")
 end
@@ -176,7 +184,7 @@ end
 function G:Snapshot(player: Player)
  local p=self.Data:Get(player); local s=self.State[player]; if not p or not s or player.Parent==nil then return end
  self.Missions.rotate(p); self.Processing:Refresh(p)
- self.Remote:FireClient(player,"State",{Profile=p,Loot=s.Loot,Value=self.Inventory.value(p,s.Loot),Heat=s.Heat,Chase=s.Chase,Weather=self.Environment.State,Clock=self.Environment.Clock,Immunity=math.max(0,s.Immunity-os.clock()),Development=self.Data.IsDevelopment,Combo=s.Combo or 0,Gadget={Charges=s.GadgetCharges or 0,Max=R.charges(p,C),Cooldown=math.max(0,(s.GadgetReady or 0)-os.clock())},Vault=if s.Vault then {Remaining=math.max(0,s.Vault.Ends-os.clock()),Collected=s.Vault.Collected,Stage=s.Vault.Stage} else nil})
+ self.Remote:FireClient(player,"State",{Profile=p,Loot=s.Loot,Value=self.Inventory.value(p,s.Loot),Heat=s.Heat,Chase=s.Chase,Weather=self.Environment.State,Clock=self.Environment.Clock,Immunity=math.max(0,s.Immunity-os.clock()),Development=self.Data.IsDevelopment,Combo=s.Combo or 0,Gadget={Charges=s.GadgetCharges or 0,Max=R.charges(p,C),Cooldown=math.max(0,(s.GadgetReady or 0)-os.clock())},Navigation=self.Navigation:Resolve(player),Vault=if s.Vault then {Remaining=math.max(0,s.Vault.Ends-os.clock()),Collected=s.Vault.Collected,Stage=s.Vault.Stage} else nil})
 end
 function G:Request(player: Player, action: any, arg: any)
  local s=self.State[player]; if not s then return end
@@ -184,7 +192,9 @@ function G:Request(player: Player, action: any, arg: any)
  if s.Tokens<1 then return end
  s.Tokens-=1
  if type(action)~="string" or not self.Data:Get(player) then return end
- if action=="Ready" then self:Snapshot(player)
+ if action=="Ready" then if not s.MapSent then self.Remote:FireClient(player,"Map",self.World.Map);s.MapSent=true end;self:Snapshot(player)
+ elseif action=="Navigate" then self.Navigation:Pin(player,arg)
+ elseif action=="Talk" and type(arg)=="string" and #arg<24 then self:Talk(player,arg)
  elseif action=="Scout" and type(arg)=="string" and #arg<32 then self.Interaction:Scout(player,arg)
  elseif action=="Begin" and type(arg)=="string" and #arg<32 then self:Begin(player,arg)
  elseif action=="Begin" and type(arg)=="table" and type(arg.Id)=="string" and #arg.Id<32 and type(arg.Approach)=="string" and #arg.Approach<16 then self:Begin(player,arg.Id,arg.Approach)
@@ -196,13 +206,15 @@ function G:Request(player: Player, action: any, arg: any)
  elseif action=="QuestAccept" and type(arg)=="string" and #arg<32 then self:Quest(player,"Accept",arg)
  elseif action=="QuestClaim" and type(arg)=="string" and #arg<32 then self:Quest(player,"Claim",arg)
  elseif action=="QuestPause" then self.Data:Get(player).Contracts.Active=""
- elseif action=="Practice" then self.Interaction:Practice(player)
+ elseif action=="Practice" and (arg==nil or arg=="Practice" or arg=="DailyDrill") then self.Interaction:Practice(player,arg)
+ elseif action=="RoundChoice" then self.Interaction:Choice(player,arg)
+ elseif action=="RoundTool" and type(arg)=="string" and #arg<64 then self.Interaction:Tool(player,arg)
  elseif action=="Resupply" then self:Resupply(player)
  elseif action=="Decoy" then self:Decoy(player)
  elseif action=="HideoutBuy" and type(arg)=="string" and #arg<24 then self:HideoutBuy(player,arg)
  elseif action=="Travel" and type(arg)=="number" and arg==arg then self:Travel(player,arg)
  elseif action=="Secret" and type(arg)=="string" and #arg<24 then self:Secret(player,arg)
- elseif action=="Stop" and type(arg)=="string" and #arg<64 then self:Resolve(player,arg)
+ elseif action=="Stop" and type(arg)=="table" and type(arg.Token)=="string" and #arg.Token<64 then self:Resolve(player,arg)
  elseif action=="Cancel" then self:CancelInteraction(player,true)
  elseif action=="Bank" then self:Bank(player)
  elseif action=="Buy" and type(arg)=="string" and #arg<30 then self:Buy(player,arg)
@@ -218,7 +230,8 @@ function G:Request(player: Player, action: any, arg: any)
  elseif action=="Setting" and type(arg)=="table" and type(arg.Key)=="string" then
   local p=self.Data:Get(player)
   if (arg.Key=="Music" or arg.Key=="Effects") and type(arg.Value)=="number" and arg.Value==arg.Value then p.Settings[arg.Key]=math.clamp(arg.Value,0,1)
-  elseif (arg.Key=="ReducedMotion" or arg.Key=="Shake" or arg.Key=="WeatherEffects") and type(arg.Value)=="boolean" then p.Settings[arg.Key]=arg.Value end
+  elseif (arg.Key=="ReducedMotion" or arg.Key=="Shake" or arg.Key=="WeatherEffects" or arg.Key=="MinimapRotate" or arg.Key=="VehicleCamera") and type(arg.Value)=="boolean" then p.Settings[arg.Key]=arg.Value
+  elseif arg.Key=="MinimapZoom" and type(arg.Value)=="number" and arg.Value%1==0 and arg.Value>=1 and arg.Value<=3 then p.Settings.MinimapZoom=arg.Value end
  end
  self:Snapshot(player)
 end
@@ -272,7 +285,8 @@ function G:Tick(now: number, dt: number)
   local p=self.Data:Get(player); local root=self:Root(player)
   if p then self.Processing:Refresh(p) end
   if not p or not root then continue end
-  if s.Attempt and workspace:GetServerTimeNow()>s.Attempt.Start+s.Attempt.Duration+C.LatencyAllowance+0.2 then self:Resolve(player,s.Attempt.Token,true) end
+  if s.Attempt then self.Interaction:Tick(player) end
+  self.Navigation:Discover(player,now)
   if not s.Vault then
    local district=self.World:DistrictAt(root.Position)
    if district and not p.Districts[tostring(district)] then
@@ -291,7 +305,7 @@ function G:Tick(now: number, dt: number)
     if not seen then s.Heat=math.max(0,s.Heat-C.Heat.Decay*dt) end
    end
    for id,target in self.NPC.Targets do
-    local nearby=(target.Model.PrimaryPart.Position-root.Position).Magnitude<C.Suspicion.Distance and not safe
+    local nearby=(target.Model.PrimaryPart.Position-root.Position).Magnitude<C.Suspicion.Distance and not safe and not (s.Attempt and s.Attempt.Target==id)
     local suspicion=s.Suspicion[id] or 0
     suspicion=math.clamp(suspicion+(if nearby then dt*C.Suspicion.Rise*(1-p.Upgrades.Disguise*C.Suspicion.DisguiseReduction) else -dt*C.Suspicion.Decay),0,100)
     s.Suspicion[id]=suspicion
@@ -306,7 +320,7 @@ function G:Tick(now: number, dt: number)
  self.NPC:Tick(now,dt); self.Security:Tick(now,dt); self.Vault:Tick(now)
 end
 function G:Start()
- self.World:Build(); self.NPC:Prepare(); self.NPC:Build(self.World); self.Security:Init(self); self.Vault:Init(self); self.Interaction:Init(self); self.Processing:Init(self); self.Cosmetics:Init(self)
+ self.World:Build(); self.NPC:Prepare(); self.NPC:Build(self.World); self.Security:Init(self); self.Vault:Init(self); self.Interaction:Init(self); self.Processing:Init(self); self.Cosmetics:Init(self);self.Navigation:Init(self);self.NPC.Game=self
  local network=Instance.new("Folder"); network.Name="Network"; network.Parent=ReplicatedStorage
  local remote=Instance.new("RemoteEvent"); remote.Name="Game"; remote.Parent=network; self.Remote=remote
  self.Vehicles:Init(self,network); self.Environment:Start(); self.Traffic:Start(self)

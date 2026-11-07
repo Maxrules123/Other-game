@@ -1,8 +1,8 @@
-# After Hours progression and controls
+# City Shift progression and controls
 
 ## The complete money loop
 
-Scout a fictional citizen → choose Careful/Bold → pass every timing stage → pocket a card → secure cards at the alley intake or in your van → deposit at the workshop → press imaginary ink tokens → run a cartoon rinse → claim in-game Cash → buy gear, cosmetics, home improvements and district access.
+Scout a fictional citizen → choose Careful/Bold → read a lane route and clear its skill phases → pocket a card → secure cards at the alley intake or in your van → deposit at the workshop → press imaginary ink tokens → run a cartoon rinse → claim in-game Cash → buy gear, cosmetics, home improvements and district access.
 
 **Depositing does not pay instant Cash.** Queue value/cards, active batch value/cards, stage and timer are saved. A batch is Pressing → Pressed → Rinsing → Ready. Pressed and Ready wait for you to use the next station. Completed timers refresh after rejoin. Claims clear the finished batch before awarding anything, so replaying a claim cannot duplicate Cash. Up to 200 cards can wait in the intake; active batches are separate.
 
@@ -14,8 +14,8 @@ Cash buys equipment in a safe workshop. Reputation is checked but kept. Tier req
 
 | Track | Base / growth / cap | Effect |
 | --- | --- | --- |
-| Sleight | 40 / 1.85 / 8 | 2.5% shorter stages per level; rating opens tougher targets. |
-| Focus | 55 / 1.9 / 8 | +0.9 percentage points of base success width per level, before approach/style modifiers. |
+| Sleight | 40 / 1.85 / 8 | 1.8% more phase time per level; rating opens tougher targets. |
+| Focus | 55 / 1.9 / 8 | +0.6 percentage points of base success width per level, before mode modifiers and bounds. |
 | Capacity | 60 / 1.9 / 8 | Five pockets +2 per level, maximum 21. |
 | Sneakers | 65 / 1.9 / 6 | 16 speed +0.8 per level, capped at 20.8. |
 | Disguise | 50 / 1.85 / 8 | 7% slower lingering suspicion per level. |
@@ -31,15 +31,19 @@ Cash buys equipment in a safe workshop. Reputation is checked but kept. Tier req
 
 Press time starts at 18 seconds and rinse at 14; upgraded time is `ceil(base × (1 − level × 0.07))` with a three-second lower bound. At level 6 the stages take 11 and 9 seconds.
 
-## Harder timing that scales
+## Skill rounds and risk
 
-The first onboarding trick remains forgiving. Otherwise base duration is `max(0.95, (2.4 − district × 0.16) × (1 − Sleight × 0.025) × approach duration)`.
+The first onboarding round teaches lane 2 with a four-second phase. Normal rounds have 2–4 connected phases; practice has three, and the daily drill has four. READ shows a numbered route, then LIFT/SWITCH/CLEAR change lane, direction and (later) drift. High-stakes routes introduce memory from district 3. Every generated phase has a reachable mint/gold interval.
 
-Zone width is `clamp((0.25 − district × 0.024 + Focus × 0.009) × approach width × personality width, 0.085, 0.36)`. Later districts/stages increase drift. Even maximum Focus keeps the endgame VIP window smaller than the starter Daydreamer window.
+Controls: J/K/L map to lanes 1/2/3; touch the lane button; or use arrows/D-pad/shoulders to select and Space/A to commit. Character movement is suspended during rounds/results. Timing uses synchronized input time with a server-owned token and bounded backdating (ping + 0.1 seconds, capped at 0.4), never a client success/reward flag.
 
-Daydreamers start at one stage, Commuters/Collectors two, VIPs three. Luxury/Neon add one, capped at three. Patterns are forward, reverse, bounce. Later zones drift; gold-center hits are Perfect. Every stage must clear before one card is granted. Each stage has a new server token, and the server validates timing from receipt time with capped ping compensation plus ownership/range/line-of-sight/capacity checks.
+Duration is `clamp((3.25 − (district−1)×0.16) × (1 + Sleight×0.018) × mode, 2.4, 4.6)`, with mode 1.08 Careful/Practice or 0.92 Bold/Daily. Width is `clamp((0.235 − (district−1)×0.017 + Focus×0.006) × mode, 0.12, 0.34)`, with mode 1.05 or 0.87. Daily drill uses fixed zero gear and the current UTC-day seed, so retrying gear does not change its route.
 
-Careful gives 15% wider windows, 12% longer stages and 20% less Heat. Bold gives 15% narrower windows, 10% shorter stages, 40% more Heat, 20% value and extra rarity luck. Five consecutive clears give up to 12% quality value; misses/cancellation/capture/death break the streak. Value quality is stored on the card when awarded. Canceling a live trick adds 10 Heat. Practice never grants rewards, Reputation or streak progress.
+One primary mistake opens STABILIZE: lane 2, no drift, wider zone, 3.5 seconds. Clearing preserves 80% round quality; another primary/recovery failure grants no card. One owned decoy charge may instead stabilize an action at an 80% quality/medal cost. It cannot revive an expired phase.
+
+After a complete street route, SECURE keeps the earned card. BONUS adds one disclosed bounce phase: clear for +15% round quality; miss for 75% current quality and additional Heat while retaining one card. Seven seconds without choosing secures automatically. The onboarding round and training finish directly.
+
+Careful adds 20% less Heat; Bold adds 40% more, +20% base card quality and +15% rarity luck. Every mistake adds six Heat before approach/composure modifiers. Existing bounded streak/style bonuses remain. Rewards are granted once after server validation; no partial phase payout. Practice/daily save scores and medals without money, loot or Heat. Gold requires all primary phases perfect without mistakes; Platinum additionally clears the bonus. Recoveries earn Bronze. Bests are saved per mode and district; the daily best is date-scoped.
 
 ## Home, van, weather and cosmetics
 

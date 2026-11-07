@@ -74,22 +74,22 @@ function methods:PivotTo(value)
  for _,child in self:GetDescendants() do if child.ClassName=="Part" then child.CFrame=cf(child.Position-origin+value.Position) end end
 end
 local enum=setmetatable({},{__index=function(t,k) local group=setmetatable({},{__index=function(_,key) return key end}); rawset(t,k,group); return group end})
-local world=instance("Workspace")
+local world=instance("Workspace");function world:Raycast() return nil end
 local shared={Config="Config",Rules="Rules",CosmeticModels="CosmeticModels"}; local modules={}
 local replicated=instance("ReplicatedStorage"); replicated.Shared=shared
 world.Terrain=instance("Terrain"); local lighting=instance("Lighting"); local materials=instance("MaterialService"); local worldTime=1000000
 local env={
  PhysicalProperties={new=function(...) return {...} end},Vector3={new=v},Vector2={new=function(x,y) return {X=x,Y=y} end},
- Color3={fromRGB=color},Enum=enum,Instance={new=instance},
+ Color3={fromRGB=color},Enum=enum,Instance={new=instance},RaycastParams={new=function() return {} end},task={spawn=function() end},
  CFrame={new=cf,Angles=function() return cf() end,lookAt=function(pos,target) local t=cf(pos); t.Look=(target-pos).Unit; return t end},
  UDim2={fromScale=function(x,y) return {x,y} end,fromOffset=function(x,y) return {x,y} end},UDim={new=function(x,y) return {x,y} end},
- Random={new=function() return {NextNumber=function(_,lo,hi) return (lo+hi)/2 end,NextInteger=function(_,lo,hi) return math.floor((lo+hi)/2) end} end},workspace=world,os={time=function() return worldTime end},script={Parent={ModelFactory="ModelFactory"}},game={GetService=function(_,name) return if name=="Lighting" then lighting elseif name=="MaterialService" then materials else replicated end},require=function(key) return modules[key] end,
+ Random={new=function() return {NextNumber=function(_,lo,hi) return (lo+hi)/2 end,NextInteger=function(_,lo,hi) return math.floor((lo+hi)/2) end} end},workspace=world,os={time=function() return worldTime end,clock=function() return worldTime end},script={Parent={ModelFactory="ModelFactory",StationModels="StationModels"}},game={GetService=function(_,name) return if name=="Lighting" then lighting elseif name=="MaterialService" then materials else replicated end},require=function(key) return modules[key] end,
 }
 setmetatable(env,{__index=getfenv()})
 local function load(name)
  local fn=assert(loadstring(Sources[name],name)); setfenv(fn,env); local module=fn(); modules[name]=module; return module
 end
-local C=load("Config"); load("Rules"); load("CosmeticModels"); load("ModelFactory"); local W=load("WorldService"); local N=load("NPCService")
+local C=load("Config"); load("Rules"); load("CosmeticModels"); load("ModelFactory"); load("StationModels");local W=load("WorldService"); local N=load("NPCService")
 W:Build(); N:Build(W)
 check(#W.Centers==5,"five connected districts built")
 check(#W.Targets==65,"65 NPC spawn routes exist")
@@ -213,4 +213,33 @@ local before=world.CardCity
 W:Build()
 check(before.Parent==nil,"rebuilding cleans up the old generated city")
 check(#W.Targets==65 and #W.SafeZones==5,"rebuilding does not duplicate city state")
+N.AvatarTemplate=nil;N:Build(W)
+local roadKeys={}
+local function geometryKey(x,z,w,d) return string.format("%.2f:%.2f:%.2f:%.2f",x,z,w,d) end
+for _,part in W.Root:GetDescendants() do if part:IsA("BasePart") then roadKeys[geometryKey(part.Position.X,part.Position.Z,part.Size.X,part.Size.Z)]=true end end
+for _,road in W.Map.Roads do check(roadKeys[geometryKey(road.X,road.Z,road.Width,road.Depth)],"map road dimensions match an actual generated part") end
+check(#W.Map.Roads==35 and #W.Map.Buildings>=50,"navigation describes the generated city and its major footprints")
+local markers={}
+for _,marker in W.Map.Markers do check(not markers[marker.Id],"public map ids are unique");markers[marker.Id]=marker;check(marker.Kind~="Secret" and marker.Kind~="Player","map metadata does not disclose hidden entities") end
+for district=1,5 do
+ check(markers["hideout_"..district].Position==W.Stations.Bank[district],"workshop marker uses the actual intake position")
+ check(markers["garage_"..district].Position==W.Stations.Garage[district],"garage marker uses the actual intercom position")
+end
+local localCitizen=N.Targets.D1N1;local farCitizen=N.Targets.D5N1
+N:React(localCitizen.Model.PrimaryPart.Position,"Alert",22)
+check(localCitizen.ReactUntil~=nil and farCitizen.ReactUntil==nil,"citizen reactions stay local to the event")
+local oldRaycast=world.Raycast;world.Raycast=function()return {}end
+local oldWaypoint=localCitizen.Waypoint;localCitizen.StuckAt=100;localCitizen.NextPath=1000
+N:Step(localCitizen,localCitizen.Model.PrimaryPart.Position+v(8,0,0),120,.25,N:Parameters())
+check(localCitizen.Waypoint~=oldWaypoint,"a persistently obstructed citizen tries a new route waypoint")
+N.ActivePaths=0
+for _,target in N.Targets do target.NextPath=0;target.Computing=false;N:Path(target,target.Route[1],200) end
+check(N.ActivePaths==C.NPC.MaxPaths,"path calculations obey one shared concurrency budget")
+for _,target in N.Targets do target.Computing=false end;N.ActivePaths=0;world.Raycast=oldRaycast
+local fakePlayer={};N.Game={State={[fakePlayer]={}},Root=function()return {Position=v(10000,3,10000)}end}
+N:Tick(1000002,.25);local last=localCitizen.LastThink
+N:Tick(1000002.1,.1);check(localCitizen.LastThink==last,"distant citizens skip expensive movement updates")
+N.Game.Root=function()return {Position=localCitizen.Model.PrimaryPart.Position+v(0,0,5)}end
+N:Tick(1000005,.25);check(localCitizen.NextThink-1000005<=C.NPC.NearInterval+.001,"nearby citizens use the responsive update interval")
+N.Game=nil
 print("PASS: "..total.." city-generation assertions (mocked instances; no Roblox physics or rendering)")

@@ -1,11 +1,12 @@
-# After Hours verification and Studio release gate
+# City Shift verification and Studio checks
 
 ## Executed here
 
-- Luau CLI 0.745 compiled all **29** production source files.
-- **244** domain assertions executed actual Config, Rules, Data, Inventory, Missions, Interaction, Security, Processing, Vehicle storage and Cosmetic transaction code under mocked engine boundaries.
-- **991** world/model/environment assertions executed actual map/model constructors, NPC routes, traffic and weather logic, R15 construction using an API fixture, wearable construction/restoration, and physical-van model setup under lightweight instance/vector mocks.
-- **423** UI component assertions executed every panel at desktop, portrait and compact-landscape mock sizes, including shop/item/full-avatar previews, touch-target dimensions, staged input, modal reset wording and cleanup. This does not render Roblox UI or validate actual device focus.
+- Luau CLI 0.745 compiled all **37** production source files.
+- **253** domain assertions executed actual Config, Rules, Data, Inventory, Missions, Interaction, Security, Processing, Vehicle storage and Cosmetic transaction code under mocked engine boundaries.
+- **1162** world/model/environment assertions executed actual map/model constructors, NPC routes, traffic and weather logic, R15 construction using an API fixture, wearable construction/restoration, and physical-van model setup under lightweight instance/vector mocks.
+- **491** UI component assertions executed every panel at desktop, portrait and compact-landscape mock sizes, including shop/item/full-avatar previews, touch-target dimensions, staged input, modal reset wording and cleanup. This does not render Roblox UI or validate actual device focus.
+- **13,585** new City Shift assertions cover **1,200 generated round cases**, solvable intervals, lane variation, recovery/tool costs, exact-once payouts, bounded timestamps, daily seeds, navigation/discovery, projection/rotation/clamping, driving math, spawn occupancy and Vault results. Engine services are mocked.
 - **165** asset checks validated nine OBJ models, triangle/vertex/UV/normal indices and bounds, unit normals, fifteen 512×512 PNG maps, and material references. These are source checks, not Roblox import tests.
 - Rojo 7.7.1 built the full DataModel. The packaged place is checked against the source text, and ZIP integrity is checked separately.
 - An offline unexpected-global-name scan found no undeclared names outside the known Roblox globals. This is not Roblox-aware strict type analysis.
@@ -13,6 +14,17 @@
 The domain suite covers migration, save/lease failures, timing bounds/scaling and phase replays, no partial/duplicate rewards, capture protections, safe transactions, queue/full-capacity handling, processing stage order/offline timer/one-time payout, van ownership/transfers/capacity, story prerequisites/one-time rewards, cosmetic ownership/proximity/slot rules, and prestige preservation/reset behavior. The generated-world suite caught and prevented duplicate target identifiers.
 
 **No actual Roblox Studio session was available.** None of the following boxes is marked passed. Real R15 API permission/access, physics, navigation, lighting/rendering, platform persistence/concurrency, streaming and input must be verified before calling this release-ready.
+
+## Focused checks for this update
+
+No Studio session was available here. These checks are required in Roblox Studio:
+
+1. Open this build and Play (F5). Leave the workshop, SCOUT a citizen, read the route, use J/K/L or lane taps, recover once, and test Secure versus Bonus. Check Output; test keyboard, controller and the Device Emulator.
+2. Try safe Practice and the UTC Daily Drill, fast retries and results. Use two test clients, simulated latency, cancellation, capture/death and respawn; verify one payout and no lingering input/movement lock.
+3. Press M. Compare road/building positions, player facing and goal edge markers with the scene. Discover/pin/arrive at services; accept/complete/pause contracts and check destination changes. Test north-up/rotation/zoom and compact portrait/landscape UI.
+4. Buy/summon/enter the van. Check acceleration, braking, capped reverse, curves, wheel travel/lights, road/curb collision, slope alignment, follow-camera restoration, owner-only access, occupied bays and stopped/overturned recovery. These physics behaviors cannot be established by mocked tests.
+5. Follow pedestrians at crossings and obstacles, inspect contacts/clerks and every workshop station, then exercise streaming and distant NPC updates. Check doors/colliders/asset proportions and simultaneous players using services.
+6. Test production persistence only in a separate private test experience/store. Validate schema-3 migration, an active processing batch, van stash, cosmetics, new map settings and round records across real rejoins. Studio test data is temporary by default.
 
 ## First play and tutorial
 
@@ -67,7 +79,7 @@ The domain suite covers migration, save/lease failures, timing bounds/scaling an
 
 - [ ] Observe a full 24-minute day/night cycle and weighted weather transitions over several periods. Density, cloud cover, grading, ambient light and rain intensity blend instead of popping or flashing.
 - [ ] Street/window/vehicle lights respond to darkness; workshop lights remain usable. Rain particles stop under roofs and follow the local camera without accumulating after respawn or weather changes.
-- [ ] Settings persist: volumes, reduced motion, optional shake and rain effects. Add permitted audio IDs before checking actual sound cues; slots are currently empty.
+- [ ] Settings persist: volumes, reduced motion, optional shake and rain effects. Check the bundled UI ping feedback at both volume extremes. Optional music/ambient/engine slots need permitted uploaded IDs before their loops can be tested.
 - [ ] Profile a 12-player session with 65 articulated targets, fifteen guards, 24 traffic models, owned vans, vegetation, cosmetics, queues and Vault Runs. Check server raycasts/pathfinding, network replication, streamed object lifetime, client wheel/joint/preview render cost and memory over a long session.
 
 The mocked tests establish implementation behavior at their boundaries. They cannot replace these Studio checks.

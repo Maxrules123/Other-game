@@ -5,6 +5,7 @@ local T={}
 function T.Find(id: string?): Model?
  local character=Players.LocalPlayer.Character
  local root=character and character:FindFirstChild("HumanoidRootPart")
+ local humanoid=character and character:FindFirstChildOfClass("Humanoid");if humanoid and humanoid.SeatPart then return nil end
  local city=workspace:FindFirstChild("CardCity"); local actors=city and city:FindFirstChild("Actors")
  if not root or not root:IsA("BasePart") or not actors then return nil end
  local params=RaycastParams.new(); params.FilterType=Enum.RaycastFilterType.Exclude
@@ -23,7 +24,7 @@ function T.Find(id: string?): Model?
  return nearest
 end
 function T.Request(ui: any,id: string?): boolean
- if not ui.State or ui.Current or ui.Timing or ui.Modal.Visible or ui.State.Vault then return false end
+ if not ui.State or ui.Current or ui.Timing or ui.Modal.Visible or ui.State.Vault or (ui.ResultLayer and ui.ResultLayer.Visible) then return false end
  local now=os.clock()
  -- Native prompts, E/X and the touch button share one request path.
  if ui.LastScoutAt and now-ui.LastScoutAt<0.5 then return false end

@@ -1,3 +1,17 @@
+# City Shift
+
+- Replaced timing-only street rounds with READ / changing lane phases / one STABILIZE recovery / SECURE-or-BONUS decisions, bounded input-time validation, one-charge tool assistance, medals, per-mode/district records and fixed daily drills. Rewards remain server-owned and exactly once.
+- Added an Activities page explaining Practice, Careful, Bold, Daily Drill and the movement-based Vault; all rounds share input language and results. Training supports fast retries, and Vault keeps its existing reward/eligibility rules.
+- Replaced workshop instruction blocks with modeled intake lockers, printer, tool/supply benches, training/contract terminals, route board, collection case and garage intercom. Moved register screens onto their counters and staff behind them. Removed an overlapping old desk.
+- Added WorldService-derived road/footprint/service metadata, discovered-service saving, a rotating/north-up minimap and full map, facing/distance/edge goals, accessible service pins and mission/processing navigation. Hidden souvenirs and other players are not exposed.
+- Added properly mounted street/parking/speed signs, restrained facade/curb colors, a complete parked van and smaller environmental labels.
+- Added shared pedestrian obstruction/path budgets, stuck-route recovery, crossing waits, local reactions, distance-based updates, named roles and short contact dialogue. Existing traffic also yields to crossing citizens.
+- Added braking/coasting/capped reverse and speed-sensitive steering, ground probes/wheel response, obstacle stops, clear garage bays, recovery/abandonment cleanup, speed display, follow-camera setting, cabin detail and reverse lamps.
+- Added shared hover/focus rings, responsive lane/results controls, portrait actions clear of standard touch controls, saved map/camera settings and rate-limited bundled UI sound feedback. Optional loop assets remain configurable.
+- Migrated schemas 1/2/3 to schema 4 in the same save store, preserving existing money, inventories, batches, van ownership/stash, cosmetics and progression.
+
+Validation: 37 production scripts compile; 253 domain, 1,162 world/model/environment, 491 UI, 13,585 City Shift assertions (1,200 generated round cases), and 165 asset checks pass. Rojo builds; source/package/download integrity is checked. Studio rendering, avatar access, physics, actual device input and live persistence still need the focused TESTING.md checks.
+
 # Citizen interaction fix
 
 - Moved citizen/contact prompts to a dedicated attachment above the torso and removed camera occlusion by their own bodies. All use E/controller X and support clicking/tapping.

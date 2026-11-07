@@ -21,7 +21,7 @@ function F.skin(model: Model,key: string,cf: CFrame): (boolean,Model?)
  if not template or not template:IsA("Model") then return false,nil end
  local clone=template:Clone(); clone.Name="ImportedSkin"; clone:PivotTo(cf); clone.Parent=model
  for _,p in clone:GetDescendants() do
-  if p:IsA("BaseScript") then p:Destroy()
+  if p:IsA("LuaSourceContainer") then p:Destroy()
   elseif p:IsA("BasePart") then p.Anchored=true; p.CanCollide=false; p.CanQuery=false end
  end
  if key~="VanBody" and key~="SedanBody" and key~="Wheel" then
@@ -124,6 +124,7 @@ function F.vehicle(parent: Instance,cf: CFrame,isVan: boolean,color: Color3,dyna
  for _,side in {-1,1} do
   local headlight=p("Headlight",Vector3.new(1.5,0.5,0.15),CFrame.new(side*1.8,0.45,-5.65),Color3.fromRGB(255,235,194),Enum.Material.Neon)
   local beam=Instance.new("SpotLight"); beam.Name="VehicleBeam"; beam.Face=Enum.NormalId.Front; beam.Angle=45; beam.Range=32; beam.Brightness=0.8; beam.Shadows=false; beam.Parent=headlight
+  p("ReverseLight",Vector3.new(.6,.3,.12),CFrame.new(side*1.1,.6,if isVan then 6.35 else 5.5),Color3.fromRGB(80,84,85),Enum.Material.SmoothPlastic)
   p("BrakeLight",Vector3.new(1.3,0.4,0.12),CFrame.new(side*1.9,0.6,if isVan then 6.35 else 5.5),Color3.fromRGB(150,55,49),Enum.Material.Neon)
   p("Bumper",Vector3.new(5.8,0.35,0.3),CFrame.new(0,-0.55,side*(if isVan then 6.4 else 5.6)),P.Panel,Enum.Material.Metal)
  end
@@ -150,6 +151,12 @@ function F.vehicle(parent: Instance,cf: CFrame,isVan: boolean,color: Color3,dyna
  if isVan then local cover=p("Cover occluder",Vector3.new(5.8,4,7),CFrame.new(0,1.9,2),P.Panel); cover.Transparency=1; cover.CanCollide=false end
  if dynamic then
   local seat=Instance.new("VehicleSeat"); seat.Name="DriverSeat"; seat.Size=Vector3.new(2,0.6,2); seat.CFrame=cf*CFrame.new(-1.35,0.9,-2); seat.Anchored=false; seat.CanCollide=false; seat.Transparency=1; seat.Parent=m
+  p("Driver seat cushion",Vector3.new(2.1,.5,2.1),CFrame.new(-1.35,.6,-2),P.Panel,Enum.Material.Fabric)
+  p("Driver seat back",Vector3.new(2.1,1.8,.4),CFrame.new(-1.35,1.7,-.9),P.Panel,Enum.Material.Fabric)
+  p("Passenger seat cushion",Vector3.new(2.1,.5,2.1),CFrame.new(1.35,.6,-2),P.Panel,Enum.Material.Fabric)
+  p("Passenger seat back",Vector3.new(2.1,1.8,.4),CFrame.new(1.35,1.7,-.9),P.Panel,Enum.Material.Fabric)
+  p("Dashboard",Vector3.new(4.7,.6,.9),CFrame.new(0,1.2,-3.5),P.Panel)
+  p("Steering wheel",Vector3.new(.12,1,1),CFrame.new(-1.35,1.5,-2.9)*CFrame.Angles(0,math.pi/2,0),P.Charcoal,Enum.Material.Metal,Enum.PartType.Cylinder)
   local stash=p("StashHandle",Vector3.new(2,1,0.4),CFrame.new(0,1.5,6.9),P.Mint,Enum.Material.Metal); stash.Transparency=0.5
   for _,item in m:GetDescendants() do
    if item:IsA("BasePart") then
@@ -160,7 +167,7 @@ function F.vehicle(parent: Instance,cf: CFrame,isVan: boolean,color: Color3,dyna
     end
    end
   end
-  root.CustomPhysicalProperties=PhysicalProperties.new(0.8,0.8,0.05)
+  root.CustomPhysicalProperties=PhysicalProperties.new(1.8,0.8,0.02)
  end
  return m
 end
@@ -189,6 +196,22 @@ function F.dumpster(parent: Instance,cf: CFrame): Model
  F.part(m,"Steel bin",Vector3.new(7,4,4),cf*CFrame.new(0,2,0),Color3.fromRGB(65,97,88),Enum.Material.Metal)
  F.part(m,"Hinged lid",Vector3.new(7.4,0.3,4.4),cf*CFrame.new(0,4.2,0)*CFrame.Angles(0.04,0,0),P.Panel,Enum.Material.DiamondPlate)
  for _,side in {-1,1} do F.part(m,"Bin handle",Vector3.new(0.2,0.2,1.8),cf*CFrame.new(side*3.7,2.5,0),P.Muted,Enum.Material.Metal) end
+ return m
+end
+function F.streetSign(parent: Instance,cf: CFrame,avenue: string,lane: string): Model
+ local m=F.model(parent,"Street sign / "..avenue)
+ local post=F.part(m,"Street sign post",Vector3.new(.18,7.8,.18),cf*CFrame.new(0,3.9,0),P.Muted,Enum.Material.Metal);post.CanCollide=false
+ F.part(m,"Sign post cap",Vector3.new(.28,.15,.28),cf*CFrame.new(0,7.9,0),P.Panel,Enum.Material.Metal).CanCollide=false
+ F.sign(m,cf*CFrame.new(0,7.3,-.13),Vector3.new(6.4,.95,.14),avenue,Color3.fromRGB(207,223,211))
+ F.sign(m,cf*CFrame.new(0,6.25,0)*CFrame.Angles(0,math.pi/2,0),Vector3.new(5.5,.95,.14),lane,Color3.fromRGB(207,223,211))
+ for _,part in m:GetDescendants() do if part:IsA("BasePart") then part.CanCollide=false end end
+ return m
+end
+function F.roadSign(parent: Instance,cf: CFrame,title: string): Model
+ local m=F.model(parent,"Road sign / "..title)
+ F.part(m,"Galvanized sign post",Vector3.new(.15,6,.15),cf*CFrame.new(0,3,0),P.Muted,Enum.Material.Metal).CanCollide=false
+ F.sign(m,cf*CFrame.new(0,5.6,-.12),Vector3.new(2,2.4,.12),title,P.White)
+ for _,part in m:GetDescendants() do if part:IsA("BasePart") then part.CanCollide=false end end
  return m
 end
 return F

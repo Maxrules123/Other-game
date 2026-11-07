@@ -15,11 +15,12 @@ function H:Refresh()
  local vans=workspace:FindFirstChild("CourierVans"); if vans then for _,van in vans:GetChildren() do if van:IsA("Model") and van.PrimaryPart then candidates[van]=true end end end
  for m in candidates do
   if not self.Objects[m] then
-   local record={CF=m.PrimaryPart.CFrame,Wheels={},Joints={},Parts={},Lights={},Brakes={},Spin=0}
+   local record={CF=m.PrimaryPart.CFrame,Wheels={},Joints={},Parts={},Lights={},Brakes={},Reverse={},Spin=0}
    for _,child in m:GetDescendants() do
     if child:IsA("BasePart") and (child:GetAttribute("WheelOffset") or child:GetAttribute("WheelPivot")) then table.insert(record.Wheels,child) end
     if child:IsA("SpotLight") and child.Name=="VehicleBeam" then table.insert(record.Lights,child) end
     if child:IsA("BasePart") and child.Name=="BrakeLight" then table.insert(record.Brakes,child) end
+    if child:IsA("BasePart") and child.Name=="ReverseLight" then table.insert(record.Reverse,child) end
     if child:IsA("Motor6D") and (child.Name=="LeftShoulder" or child.Name=="RightShoulder" or child.Name=="LeftHip" or child.Name=="RightHip") then table.insert(record.Joints,{Motor=child,Base=child.C0,Sign=if string.find(child.Name,"Left") then 1 else -1}) end
    end
    self.Objects[m]=record
@@ -58,7 +59,10 @@ function H:Draw(dt: number)
   for _,wheel in data.Wheels do
    local rotate=CFrame.Angles(0,if wheel:GetAttribute("Front") then steer*0.3 else 0,0)*CFrame.Angles(data.Spin,0,0)
    local motor=wheel:FindFirstChild("WheelMotor")
-   if motor and motor:IsA("Motor6D") then motor.Transform=rotate
+   if motor and motor:IsA("Motor6D") then
+    local pivot=wheel:GetAttribute("WheelOffset") or wheel:GetAttribute("WheelPivot")
+    local suffix=(if wheel:GetAttribute("Front") then "F" else "R")..(if pivot.Position.X<0 then "L" else "R")
+    motor.Transform=CFrame.new(0,(model:GetAttribute("WheelTravel"..suffix) or 0)*.2,0)*rotate
    else
     local pivot=wheel:GetAttribute("WheelOffset") or wheel:GetAttribute("WheelPivot")
     wheel.CFrame=root.CFrame*pivot*rotate*(wheel:GetAttribute("SpokeLocal") or CFrame.new())
@@ -67,6 +71,7 @@ function H:Draw(dt: number)
   local clock=workspace:GetAttribute("CityClock") or 16
   for _,light in data.Lights do light.Enabled=clock>=18 or clock<6 or workspace:GetAttribute("Weather")=="Rain" end
   for _,brake in data.Brakes do brake.Color=if model:GetAttribute("Braking") then Color3.fromRGB(252,96,83) else Color3.fromRGB(120,48,43) end
+  for _,reverse in data.Reverse do reverse.Color=if model:GetAttribute("Reversing") then Color3.fromRGB(235,232,214) else Color3.fromRGB(80,84,85) end
   local activity=model:GetAttribute("Activity")
   local isPhone=activity=="Phone break"
   for _,name in {"CitizenPhone","PhoneScreen"} do local phone=model:FindFirstChild(name); if phone and phone:IsA("BasePart") then phone.LocalTransparencyModifier=if isPhone then 0 else 1 end end

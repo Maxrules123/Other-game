@@ -40,6 +40,9 @@ function Traffic:Tick(now: number,dt: number)
   signal.Green.Transparency=if green then 0 else 0.85; signal.Red.Transparency=if green then 0.85 else 0
  end
  local weather=C.Weather.Profiles[self.Game.Environment.State]
+ local pedestrians={}
+ for player in self.Game.State do local root=self.Game:Root(player);if root then table.insert(pedestrians,root.Position) end end
+ if self.Game.NPC then for _,target in self.Game.NPC.Targets do local position=target.Model.PrimaryPart.Position;if math.abs(position.Z)<22 then table.insert(pedestrians,position) end end end
  for _,car in self.Cars do
   local root=car.Model.PrimaryPart; local pos,dir,segment=pathPoint(car.Distance,self.Paths[car.Lane])
   local desired=C.Traffic.Speed*weather.Drive
@@ -61,11 +64,9 @@ function Traffic:Tick(now: number,dt: number)
     if gap<C.Traffic.Gap then desired=math.min(desired,math.max(0,(gap-15)*1.5)) end
    end
   end
-  for player in self.Game.State do
-   local pRoot=self.Game:Root(player)
-   if pRoot then local delta=pRoot.Position-pos; local along=delta:Dot(dir); local across=(delta-dir*along).Magnitude
-    if along>0 and along<20 and across<6 then desired=math.min(desired,math.max(0,(along-8)*1.4)) end
-   end
+  for _,position in pedestrians do
+   local delta=position-pos;local along=delta:Dot(dir);local across=(delta-dir*along).Magnitude
+   if along>0 and along<26 and across<6 then desired=math.min(desired,math.max(0,(along-10)*1.3)) end
   end
   car.Speed=R.speedTowards(car.Speed,desired,if desired<car.Speed then C.Traffic.Braking else C.Traffic.Acceleration,dt)
   car.Distance=(car.Distance+car.Speed*dt)%self.Length

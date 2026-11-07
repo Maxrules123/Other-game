@@ -10,3 +10,5 @@ cityVisuals:Init()
 audio:Init()
 ui:Init(remote,audio,effects)
 require(script.InputController).Start(ui)
+
+require(script.VehicleController).Init(ui)

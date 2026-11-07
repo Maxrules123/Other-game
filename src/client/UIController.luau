@@ -8,6 +8,8 @@ local C=require(Shared.Config)
 local R=require(Shared.Rules)
 local K=require(script.Parent.UIComponents)
 local Targets=require(script.Parent.TargetController)
+local RoundUI=require(script.Parent.RoundController)
+local Minimap=require(script.Parent.MinimapController)
 local CosmeticModels=require(Shared.CosmeticModels)
 local P=K.Color
 local U: any={State=nil,Current=nil,Signature="",Timing=nil,GearTab=1,CollectionFilter=0,NoticeId=0,RevealId=0}
@@ -30,7 +32,7 @@ function U:Init(remote: RemoteEvent,audio: any,effects: any)
  self.Rep=K.label(hud,"0 REP",13,P.Purple,UDim2.new(0.24,0,0,40),UDim2.new(0.36,0,0,32))
  self.Pockets=K.label(hud,"0 / 5 cards",13,P.Text,UDim2.new(0.4,-14,0,40),UDim2.new(0.6,0,0,32)); self.Pockets.TextXAlignment=Enum.TextXAlignment.Right
  self.HeatFill=K.progress(hud,UDim2.new(0,14,1,-9),UDim2.new(1,-28,0,3),0,P.Mint)
- local objective=K.frame(root,UDim2.new(1,0,0,52),UDim2.fromOffset(0,94),P.Panel); K.round(objective); self.Objective=K.label(objective,"Opening your profile…",12,P.Text,UDim2.new(1,-28,1,-8),UDim2.fromOffset(14,4))
+ local objective=K.frame(root,UDim2.new(1,0,0,52),UDim2.fromOffset(0,94),P.Panel); K.round(objective);self.ObjectivePanel=objective; self.Objective=K.label(objective,"Opening your profile…",12,P.Text,UDim2.new(1,-28,1,-8),UDim2.fromOffset(14,4))
  self.Context=K.label(root,"",12,P.Text,UDim2.new(1,-16,0,52),UDim2.new(0,8,1,-172)); self.Context.TextXAlignment=Enum.TextXAlignment.Center
  self.MenuButton=self:Button(root,"OPEN CITY DESK",UDim2.fromOffset(140,48),UDim2.new(0.5,-70,1,-58),function() self:Open("Overview") end,P.Panel); self.MenuButton.TextColor3=P.Text; K.border(self.MenuButton)
  self.DecoyButton=self:Button(root,"DECOY",UDim2.fromOffset(136,44),UDim2.new(0.5,-68,1,-110),function() self:Send("Decoy") end,P.Purple); self.DecoyButton.Visible=false
@@ -40,7 +42,7 @@ function U:Init(remote: RemoteEvent,audio: any,effects: any)
  self.CloseButton=self:Button(menu,"×",UDim2.fromOffset(48,44),UDim2.new(1,-62,0,12),function() self:Close() end,P.Raised)
  local nav=K.scroll(menu,UDim2.new(0,166,1,-84),UDim2.fromOffset(12,76)); K.list(nav,6); self.NavPanel=nav
  self.Nav={}
- for _,name in {"Overview","Pockets","Collection","Equipment","Operations","Hideout","Van","Style Shop","Wardrobe","Districts","Quests","Settings"} do
+ for _,name in {"Overview","Activities","Map","Pockets","Collection","Equipment","Operations","Hideout","Van","Style Shop","Wardrobe","Districts","Quests","Settings"} do
   local b=self:Button(nav,name,UDim2.new(1,-8,0,44),nil,function() self:Open(name) end,P.Raised); self.Nav[name]=b
  end
  local body=K.scroll(menu,UDim2.new(1,-208,1,-88),UDim2.fromOffset(192,76)); K.list(body,12); self.Body=body
@@ -48,6 +50,7 @@ function U:Init(remote: RemoteEvent,audio: any,effects: any)
  local toast=K.frame(root,UDim2.new(1,-20,0,74),UDim2.fromOffset(10,154),P.Raised); toast.ZIndex=70; K.round(toast); K.border(toast,P.Mint); toast.Visible=false; self.Toast=toast
  self.ToastText=K.label(toast,"",13,P.Text,UDim2.new(1,-28,1,-16),UDim2.fromOffset(14,8))
  self:BuildDialog(); self:BuildTiming(); self:BuildReveal()
+ self.MapController=Minimap;Minimap:Init(self)
  local function resize()
   self.Mobile=gui.AbsoluteSize.X<760
   local layout=self.NavPanel:FindFirstChildOfClass("UIListLayout")
@@ -69,6 +72,14 @@ function U:Init(remote: RemoteEvent,audio: any,effects: any)
   self.TimingTrack.Position=UDim2.fromOffset(24,if compact then 76 else 113); self.TimingTrack.Size=UDim2.new(1,-48,0,if compact then 28 else 48)
   self.StopButton.Position=UDim2.fromOffset(24,height-104); self.StopButton.Size=UDim2.new(1,-48,0,48)
   self.TimingCancel.Position=UDim2.fromOffset(24,height-52)
+  RoundUI.Resize(self);Minimap:Resize()
+  self.HUD.Size=UDim2.new(1,0,0,68);self.HeatFill.Parent.Position=UDim2.new(0,14,1,-5)
+  self.Cash.Position=UDim2.fromOffset(14,24);self.Cash.Size=UDim2.new(.36,-14,0,34)
+  self.Rep.Position=UDim2.new(.36,0,0,24);self.Rep.Size=UDim2.new(.24,0,0,34)
+  self.Pockets.Position=UDim2.new(.6,0,0,24);self.Pockets.Size=UDim2.new(.4,-14,0,34)
+  self.ObjectivePanel.Position=UDim2.fromOffset(0,76);self.ObjectivePanel.Size=UDim2.new(1,if self.Mobile or gui.AbsoluteSize.Y<430 then -144 else -192,0,70)
+  self.Objective.Size=UDim2.new(1,-20,1,-12);self.Objective.Position=UDim2.fromOffset(10,6)
+  self.Context.Visible=gui.AbsoluteSize.Y>=430
   self.Signature=""; self:RenderMenu()
  end
  gui:GetPropertyChangedSignal("AbsoluteSize"):Connect(resize); resize()
@@ -80,7 +91,7 @@ function U:Close()
  self.Current=nil; self.Menu.Visible=false; self.Signature=""; self:Focus(nil)
 end
 function U:Open(name: string)
- if self.Timing or self.Modal.Visible then return end
+ if self.Timing or self.Modal.Visible or (self.ResultLayer and self.ResultLayer.Visible) then return end
  local aliases={Index="Collection",Upgrades="Equipment",Missions="Quests",Shop="Equipment",Bank="Operations",Garage="Van"}
  name=aliases[name] or name
  if self.Current~=name then self.Body.CanvasPosition=Vector2.zero end
@@ -130,9 +141,10 @@ function U:HideDialog() self.Modal.Visible=false; self.DialogCallback=nil; self.
 function U:ConfirmDialog() local fn=self.DialogCallback; self:HideDialog(); if fn then fn() end end
 function U:StateKey(): string
  local p=self.State.Profile; local q=p.Processing; local bits={self.Current or "",tostring(self.Mobile),tostring(p.Cash),tostring(p.Reputation),tostring(p.Starter),tostring(p.StarterProgress),tostring(#self.State.Loot),q.Stage,tostring(q.PendingValue),tostring(q.Value),p.Contracts.Active,tostring(p.Van.Owned),tostring(#p.Van.Stash),tostring(self.GearTab),tostring(self.CollectionFilter),tostring(p.Identities)}
+ if self.Current=="Map" and self.State.Navigation then table.insert(bits,self.State.Navigation.Id..":"..self.State.Navigation.Title) end
  for _,key in C.UpgradeOrder do table.insert(bits,tostring(p.Upgrades[key])) end
  for _,key in C.HideoutOrder do table.insert(bits,tostring(p.Hideout[key])) end
- for _,map in {p.Collection,p.Secrets,p.Contracts.Claimed,p.Contracts.Progress,p.Daily.Progress,p.Daily.Claimed,p.Settings,p.Cosmetics.Owned,p.Cosmetics.Equipped} do
+ for _,map in {p.Collection,p.Secrets,p.Contracts.Claimed,p.Contracts.Progress,p.Exploration.Services,p.Daily.Progress,p.Daily.Claimed,p.Settings,p.Cosmetics.Owned,p.Cosmetics.Equipped} do
   local items={}; for key,value in map do table.insert(items,tostring(key)..":"..tostring(value)) end; table.sort(items); table.insert(bits,table.concat(items,","))
  end
  for i=1,5 do table.insert(bits,tostring(p.Districts[tostring(i)])) end
@@ -146,11 +158,13 @@ function U:RenderMenu()
  self.ProcessClock=nil; self.ProcessFill=nil
  local p=self.State.Profile
  if self.Current=="Overview" then
-  self:Note("AFTER HOURS / CITY DESK","Work the streets, secure your haul, and turn fictional cards into Cash through the backroom machines.",P.Mint)
+  self:Note("CITY SHIFT / CITY DESK","Work the streets, secure your haul, and turn fictional cards into Cash through the backroom machines.",P.Mint)
   self:Note("YOUR NEXT MOVE",C.StarterMissions[p.Starter] and C.StarterMissions[p.Starter].Text or "Explore new blocks, meet quest givers, and build your hideout.")
   self:Action("Backroom operations",p.Processing.PendingCards.." cards queued · Machine: "..p.Processing.Stage.." · Stored cards are safe from capture.","Open operations",function() self:Open("Operations") end)
   self:Action("People and stories","Mara, Jax, Wren and Iris have twelve linked contracts across the city.","Open quest journal",function() self:Open("Quests") end,P.Purple)
   self:Note("CAREER",p.Stats.Successes.." cards secured · "..p.Stats.Perfects.." perfect tricks\n$"..K.number(p.Stats.Banked).." processed · Best streak "..p.Stats.BestCombo,P.Gold)
+ elseif self.Current=="Activities" then self:Activities()
+ elseif self.Current=="Map" then if self.MapController then self.MapController:MountFull(self.Body) else self:Note("Map loading","The city is sending its street layout.") end
  elseif self.Current=="Pockets" then
   self:Action("UNBANKED / $"..K.number(self.State.Value),#self.State.Loot.." of "..R.capacity(p.Upgrades.Capacity,C).." slots · Capture or death drops half, rounded up.","Deposit at hideout intake",function() self:Send("Bank") end)
   if #self.State.Loot==0 then self:Note("Empty pockets","Scout a nearby citizen or withdraw cards from your van.") else self:Cards(self.State.Loot,false) end
@@ -254,6 +268,7 @@ function U:Van()
   self:Action("CRUMB COURIER VAN","Buy at an alley garage. Ownership persists through New Identity; the stash resets when you prestige.","Buy / $"..C.Van.Price.." / "..C.Van.Reputation.." REP",function() self:Send("Van","Purchase") end)
  else
   self:Action("GARAGE / DRIVE","Summon at a garage, then use the driver-seat prompt. WASD, gamepad or touch thumbstick drives; jump exits.","Summon at nearby garage",function() self:Send("Van","Summon") end)
+  self:Action("STUCK OR OVERTURNED","Stop near your van and recover it to an unoccupied garage bay. The stash is preserved; recovery has a 20-second cooldown.","Recover nearby van / R while driving",function() self:Send("Van","Recover") end,P.Raised)
   self:Action("REAR STORAGE","Stand at the rear of your own van. Van Slots adds room; Engine improves capped cruising speed.","Store all pocket cards",function() self:Send("Van","Store") end)
   self:Action("WITHDRAW","Returns as many cards as fit into your pockets. These become unbanked and vulnerable again.","Withdraw cards",function() self:Send("Van","Withdraw") end,P.Purple)
   self:Action("HIDEOUT DOCK","Park beside the external intake on the west wall, then stand between the rear doors and intake.","Deposit van stash into processing",function() self:Send("Van","Deposit") end,P.Gold)
@@ -311,13 +326,14 @@ function U:Districts()
  end
 end
 function U:Quests()
+ if self.ContactFilter then self:Action("TALKING TO "..self.ContactFilter,"Showing this contact's contracts.","Show every contract",function() self.ContactFilter=nil;self.Signature="";self:RenderMenu() end,P.Raised) end
  local p=self.State.Profile; local starter=C.StarterMissions[p.Starter]
  self:Note("YOUR STARTER STORY",if starter then starter.Title.." / "..starter.Text.." ("..p.StarterProgress.." / "..starter.Goal..")" else "Complete. Meet the city's contacts for longer contracts.",P.Mint)
  if self.State.Vault then self:Action("VAULT RUN ACTIVE","Use the exit or leave the run without a reward.","Leave Vault Run",function() self:Send("VaultLeave") end,P.Red) end
  self:Note("STORY CONTRACTS","Talk to the named contact in the courtyard to accept and claim. One story contract is active at a time; completed rewards can be claimed only once.",P.Purple)
  if p.Contracts.Active~="" then self:Action("ACTIVE CONTRACT / "..C.Contracts[p.Contracts.Active].Title,"You can pause this contract and resume later. Saved progress is kept.","Pause active contract",function() self:Send("QuestPause") end,P.Raised) end
  for _,id in C.ContractOrder do
-  local def=C.Contracts[id]; local done=p.Contracts.Claimed[id]; local active=p.Contracts.Active==id; local progress=p.Contracts.Progress[id] or 0
+  local def=C.Contracts[id];if self.ContactFilter and def.Speaker~=self.ContactFilter then continue end; local done=p.Contracts.Claimed[id]; local active=p.Contracts.Active==id; local progress=p.Contracts.Progress[id] or 0
   local unlocked=p.Districts[tostring(def.District)] and (not def.Previous or p.Contracts.Claimed[def.Previous])
   local title=def.Speaker.." / "..def.Title
   local description=def.Text.."\n"..progress.." / "..def.Goal.." · $"..def.Cash.." + "..def.Rep.." REP"
@@ -330,18 +346,34 @@ function U:Quests()
  end
  self:Action("VAULT RUN","The kiosk is inside the Starter backroom. Bank pockets first; cross the pulsing security course and find the exit.","Start at kiosk / "..C.Vault.Rep.." REP",function() self:Send("Vault") end,P.Gold)
 end
+function U:Activities()
+ local p=self.State.Profile
+ for _,mode in C.ModeOrder do
+  local d=C.Modes[mode]
+  self:Action(d.Name,d.Objective.."\n"..d.Pressure.."\n"..d.Reward.."\n"..d.Duration.." / "..d.Requirement,if mode=="Practice" or mode=="DailyDrill" then "Start at nearby practice console" elseif mode=="Vault" then "Start at nearby vault terminal" else "Find a citizen on the avenue",function()
+   if mode=="Practice" or mode=="DailyDrill" then self:Send("Practice",mode) elseif mode=="Vault" then self:Send("Vault") else self:Close();self:Notice("Walk close to a citizen and use SCOUT to choose your approach.") end
+  end,if mode=="Bold" then P.Gold else P.Mint)
+  self:Note("RELEVANT GEAR",d.Gear)
+ end
+ local records=p.RoundRecords
+ if records then
+  self:Note("PERSONAL ROUTES",tostring(records.Rounds).." rounds played / daily drill best "..records.Daily.Best,P.Gold)
+  for key,score in records.Best do self:Note(key.." / "..score.." points",records.Medals[key] or "") end
+ end
+end
 function U:Settings()
  local p=self.State.Profile
  for _,key in {"Music","Effects"} do
   local f=self:Row(104); K.label(f,key.." volume / "..math.floor(p.Settings[key]*100).."%",15,P.Text,UDim2.new(1,-28,0,34),UDim2.fromOffset(14,5))
   for i,value in {0,0.35,0.7,1} do self:Button(f,tostring(math.floor(value*100)).."%",UDim2.new(0.25,-10,0,44),UDim2.new((i-1)*0.25,5,0,50),function() self:Send("Setting",{Key=key,Value=value}) end,if p.Settings[key]==value then P.Mint else P.Raised) end
  end
- for _,key in {"ReducedMotion","Shake","WeatherEffects"} do self:Action(key,if key=="WeatherEffects" then "Toggle local rain particles; weather lighting and the server cycle continue." else "Adjust optional screen and camera presentation.",if p.Settings[key] then "ON / toggle" else "OFF / toggle",function() self:Send("Setting",{Key=key,Value=not p.Settings[key]}) end,P.Purple) end
- self:Note("CONTROLS","E / X / tap: interact · Space / A: time a hit · G / R1: decoy · Tab / Y: city desk · B: close · van: WASD / thumbstick, jump to exit.")
+ for _,key in {"ReducedMotion","Shake","WeatherEffects","MinimapRotate","VehicleCamera"} do self:Action(key,if key=="WeatherEffects" then "Toggle local rain particles; weather lighting and the server cycle continue." else "Adjust optional screen and camera presentation.",if p.Settings[key] then "ON / toggle" else "OFF / toggle",function() self:Send("Setting",{Key=key,Value=not p.Settings[key]}) end,P.Purple) end
+ self:Note("CONTROLS","E / X / tap: interact · J/K/L or arrows + Space/A: lane hit · M: map · G / R1: decoy · Tab / Y: city desk · B: close · van: WASD / thumbstick, jump to exit.")
  self:Note("FICTIONAL CITY","Original banks, decorative cards, cartoon tokens, imaginary Cash. Audio asset slots are configurable and currently empty.",P.Muted)
 end
 function U:UpdateState(packet: any)
  local previous=self.State; self.State=packet; local p=packet.Profile
+ Minimap:ReceiveState(packet)
  self.Audio:Update(p.Settings); self.Effects.Settings=p.Settings
  if self.CityVisuals then self.CityVisuals.Settings=p.Settings; self.CityVisuals.ProcessStage=p.Processing.Stage end
  if self.HideoutController then self.HideoutController:Update(packet) end
@@ -350,7 +382,7 @@ function U:UpdateState(packet: any)
  self.WeatherLabel.Text=(packet.Weather or "Clear"):upper().." / "..string.format("%02d:%02d",math.floor(packet.Clock or 16),math.floor(((packet.Clock or 16)%1)*60)).." / HEAT "..math.floor(packet.Heat)
  self.Effects:Tween(self.HeatFill,{Size=UDim2.fromScale(packet.Heat/100,1),BackgroundColor3=if packet.Chase then P.Red elseif packet.Heat>=55 then P.Gold else P.Mint},0.25)
  local starter=C.StarterMissions[p.Starter]
- self.Objective.Text=if packet.Chase then "SECURITY PURSUIT / break sight, reach cover, or use a decoy" elseif packet.Vault then "VAULT RUN / "..math.ceil(packet.Vault.Remaining).."s / "..packet.Vault.Stage.." of 5 gates" elseif starter then starter.Title:upper().." / "..starter.Text else "AFTER HOURS / explore, meet contacts, and improve your backroom"
+ self.Objective.Text=if packet.Chase then "SECURITY PURSUIT / break sight, reach cover, or use a decoy" elseif packet.Vault then "VAULT RUN / "..math.ceil(packet.Vault.Remaining).."s / "..packet.Vault.Stage.." of 5 gates" elseif packet.Navigation then packet.Navigation.Title:upper().." / "..math.floor(packet.Navigation.Distance).." studs" elseif starter then starter.Title:upper() else "CITY SHIFT / choose an activity"
  self.DecoyButton.Text=if packet.Gadget.Cooldown>0 then "DECOY / "..math.ceil(packet.Gadget.Cooldown).."s" else "DECOY / "..packet.Gadget.Charges
  self:RenderMenu()
  local q=p.Processing
@@ -362,50 +394,23 @@ function U:UpdateState(packet: any)
 end
 function U:UpdateContext()
  if not self.State then return end
- local blocked=self.Current or self.Timing or self.Modal.Visible
+ local blocked=self.Current or self.Timing or self.Modal.Visible or self.ResultLayer.Visible
  local target=if not blocked and not self.State.Vault then Targets.Find() else nil
  self.ScoutButton.Visible=target~=nil
- self.MenuButton.Position=if target then UDim2.new(0.5,8,1,-110) else UDim2.new(0.5,-70,1,-58)
- self.DecoyButton.Position=if target then UDim2.new(0.5,-148,1,-110) else UDim2.new(0.5,-68,1,-110)
+ self.MenuButton.Position=if target and self.Mobile then UDim2.new(.5,-70,1,-110) elseif target then UDim2.new(.5,8,1,-110) else UDim2.new(.5,-70,1,-58)
+ self.DecoyButton.Position=if target and self.Mobile then UDim2.new(.5,-68,1,-162) elseif target then UDim2.new(.5,-148,1,-110) else UDim2.new(.5,-68,1,-110)
+ self.Context.Position=if target and self.Mobile then UDim2.new(0,8,1,-224) else UDim2.new(0,8,1,-172)
+ self.HideObjective=target~=nil and self.Gui.AbsoluteSize.Y<360
+ self.ObjectivePanel.Visible=not self.HideObjective and not self.Driving
  self.MenuButton.Visible=not blocked; self.DecoyButton.Visible=not blocked and self.State.Profile.Upgrades.Gadgets>0 and not self.State.Vault
  if self.HideoutController then self.HideoutController:RefreshSecrets(self.State.Profile) end
  if blocked then self.Context.Text=""; return end
  self.Context.Text=if target then target.Name.." / press E, controller X or tap SCOUT" elseif self.State.Chase then "You carry $"..K.number(self.State.Value).." / banked and stored progress stays safe" elseif #self.State.Loot>0 then "Find the alley backroom to secure cards / van rear doors provide mobile storage" else "Leave the workshop through the alley / walk up to a citizen on the avenue"
 end
-function U:BuildTiming()
- local layer=K.frame(self.Gui,UDim2.fromScale(1,1),nil,P.Background); layer.BackgroundTransparency=0.35; layer.ZIndex=140; layer.Visible=false; self.TimingLayer=layer
- local box=K.frame(layer,UDim2.new(1,-28,0,330),UDim2.fromScale(0.5,0.5),P.Background); box.AnchorPoint=Vector2.new(0.5,0.5); self.TimingBox=box; K.round(box,18); K.border(box)
- local max=Instance.new("UISizeConstraint"); max.MaxSize=Vector2.new(650,330); max.Parent=box
- self.TimingScale=Instance.new("UIScale"); self.TimingScale.Parent=box
- self.TimingTitle=K.label(box,"",21,P.Text,UDim2.new(1,-40,0,44),UDim2.fromOffset(20,10)); self.TimingTitle.Font=Enum.Font.GothamBold
- self.TimingCaption=K.label(box,"",12,P.Muted,UDim2.new(1,-40,0,42),UDim2.fromOffset(20,55))
- local track=K.frame(box,UDim2.new(1,-48,0,48),UDim2.fromOffset(24,113),P.Raised); self.TimingTrack=track; K.round(track,8)
- self.Zone=K.frame(track,UDim2.fromScale(0.2,1),nil,P.Mint); K.round(self.Zone,6)
- self.Perfect=K.frame(track,UDim2.fromScale(0.05,1),nil,P.Gold); K.round(self.Perfect,4)
- self.Marker=K.frame(track,UDim2.new(0,3,1,16),UDim2.fromOffset(0,-8),P.Text); self.Marker.AnchorPoint=Vector2.new(0.5,0)
- self.StopButton=self:Button(box,"LOCK IN / SPACE / A",UDim2.new(1,-48,0,56),UDim2.fromOffset(24,190),function() self:StopTiming() end,P.Mint)
- self.TimingCancel=self:Button(box,"Abandon trick",UDim2.new(1,-48,0,44),UDim2.fromOffset(24,264),function() self:Send("Cancel"); self:EndTiming() end,P.Raised)
-end
-function U:StartTiming(packet: any)
- self:Close(); self:SkipReveal(); self:HideDialog(); self:EndTiming(); self.Timing=packet; packet.Submitted=false; self.TimingLayer.Visible=true; self.Toast.Visible=false
- self.TimingTitle.Text=(if packet.Practice then "PRACTICE" else string.upper(packet.Approach)).." / "..packet.Stage.." OF "..packet.Stages
- self.TimingCaption.Text=string.upper(packet.Pattern).." / "..(if packet.Stage>1 then (packet.LastGrade or "Good")..". Follow the drifting zone." else "Mint clears the stage. Gold gives a perfect hit.")
- self.Zone.Size=UDim2.fromScale(packet.Width,1); self.Perfect.Size=UDim2.fromScale(packet.Width*0.4,1)
- self:Focus(self.StopButton)
- self.TimingConnection=RunService.RenderStepped:Connect(function()
-  if not self.Timing or self.Timing.Submitted then return end
-  local elapsed=workspace:GetServerTimeNow()-packet.Start
-  local center=R.zone(elapsed,packet.Duration,packet.Center,packet.Drift,packet.Width)
-  self.Marker.Position=UDim2.new(R.cursor(elapsed,packet.Duration,packet.Pattern),0,0,-8)
-  self.Zone.Position=UDim2.fromScale(center-packet.Width/2,0); self.Perfect.Position=UDim2.fromScale(center-packet.Width*0.2,0)
-  self.StopButton.Text=if elapsed<0 then "GET READY" else "LOCK IN / SPACE / A"
- end)
-end
-function U:StopTiming()
- if not self.Timing or self.Timing.Submitted or workspace:GetServerTimeNow()<self.Timing.Start then return end
- self.Timing.Submitted=true; self:Send("Stop",self.Timing.Token); self.StopButton.Text="CHECKING"
-end
-function U:EndTiming() if self.TimingConnection then self.TimingConnection:Disconnect(); self.TimingConnection=nil end; self.Timing=nil; self.TimingLayer.Visible=false; self:Focus(nil) end
+function U:BuildTiming() RoundUI.Build(self) end
+function U:StartTiming(packet: any) RoundUI.Start(self,packet) end
+function U:StopTiming(lane: number?) RoundUI.Submit(self,lane) end
+function U:EndTiming() RoundUI.End(self) end
 function U:BuildReveal()
  local f=K.frame(self.Root,UDim2.new(1,-28,0,178),UDim2.new(0.5,0,1,-68),P.Panel); f.AnchorPoint=Vector2.new(0.5,1); f.ZIndex=80; K.round(f,14); K.border(f)
  local max=Instance.new("UISizeConstraint"); max.MaxSize=Vector2.new(420,178); max.Parent=f; f.Visible=false; self.Reveal=f
@@ -417,12 +422,15 @@ end
 function U:SkipReveal() self.RevealId+=1; self.Reveal.Visible=false end
 function U:Receive(kind: string,packet: any)
  if kind=="State" then self:UpdateState(packet)
+ elseif kind=="Map" then Minimap:SetData(packet)
  elseif kind=="Notice" then self:Notice(packet.Text,packet.Sound)
  elseif kind=="Timing" then self:StartTiming(packet)
  elseif kind=="TimingEnd" then self:EndTiming()
+ elseif kind=="RoundResult" then RoundUI.Result(self,packet)
+ elseif kind=="Dialogue" then self:ShowDialog(packet.Speaker.." / "..packet.Role,packet.Text,"View contracts",function() self.ContactFilter=packet.Speaker;self:Open("Quests") end,true)
  elseif kind=="Scout" then
   local style=C.TargetStyles[packet.Style]; local possible={}; for r,w in C.Districts[packet.District].Weights do if w>0 then table.insert(possible,C.Rarities[r]) end end
-  self:ShowDialog(packet.Name.." / "..style.Name,style.Flavor.."\n\n"..packet.Stages.." stages / Sleight "..packet.Requirement.." / Suspicion "..packet.Suspicion.."%\nCards: "..table.concat(possible,", ").."\n\nCAREFUL / "..C.Approaches.Careful.Description.."\n\nBOLD / "..C.Approaches.Bold.Description.."\n\nEvery stage must clear before a card is awarded. Later districts have smaller, faster windows.","Careful",function() self:Send("Begin",{Id=packet.Id,Approach="Careful"}) end,true)
+  self:ShowDialog(packet.Name.." / "..style.Name,style.Flavor.."\n\n"..packet.Stages.." stages / Sleight "..packet.Requirement.." / Suspicion "..packet.Suspicion.."%\nCards: "..table.concat(possible,", ").."\n\nCAREFUL / "..C.Approaches.Careful.Description.."\n\nBOLD / "..C.Approaches.Bold.Description.."\n\nREAD the lane route, then use J/K/L, tap a lane, or select with arrows and confirm with Space/A. One mistake gives one stabilize phase at 80% quality. After the route, SECURE the card or try a +15% bonus; a bonus miss keeps the card at 75% quality and adds Heat. Higher districts add reversed patterns, drifting zones and memory routes.","Careful",function() self:Send("Begin",{Id=packet.Id,Approach="Careful"}) end,true)
   self.DialogCancel.Text="Bold +20%"; self.DialogCancel.BackgroundColor3=P.Gold; self.DialogCancel.TextColor3=P.Background; self.DialogCancelAction=function() self:Send("Begin",{Id=packet.Id,Approach="Bold"}) end
  elseif kind=="Reveal" then
   self.RevealId+=1; local id=self.RevealId; local card=C.Cards[packet.Loot.Id]; self.Reveal.Visible=true
@@ -434,7 +442,7 @@ function U:Receive(kind: string,packet: any)
   if packet.Milestone>0 then self:Notice("Collection milestone / +$"..packet.Milestone,"Success") end
  elseif kind=="Decoy" then local root=Players.LocalPlayer.Character and Players.LocalPlayer.Character:FindFirstChild("HumanoidRootPart"); if root then self.Effects:Celebrate(root.Position,P.Purple) end
  elseif kind=="Capture" then
-  self:EndTiming(); self.Audio:Play("Capture"); self.Effects:Shake()
+  self:EndTiming();RoundUI.CloseResult(self); self.Audio:Play("Capture"); self.Effects:Shake()
   self:ShowDialog("SECURITY CAUGHT YOU",packet.Lost.." unbanked cards lost; "..packet.Kept.." remain.\n\nCash, stored batches, van stash, upgrades and discoveries stay safe. Your checkpoint provides a "..C.CaptureImmunity.."-second grace period.","Back to the city",function() end,false)
  elseif kind=="PrestigeInfo" then
   self:ShowDialog("NEW IDENTITY","Requires all districts, completed starter jobs, $100,000 and 1,000 REP.\n\nRESETS: Cash, Reputation, normal equipment, district access, pocket cards, van stash, queued/active processing, Heat, streak and starter jobs.\n\nKEEPS: van ownership, home upgrades, collections, souvenirs, career stats, contract progress/claims, daily progress/claims, cosmetics and equipped outfits, settings and identity badges.\n\nEARNS: one badge and +5% permanent card banking value, capped at +50%. Confirmation expires in 30 seconds.","Confirm reset",function() self:Send("Prestige",packet.Token) end,true)

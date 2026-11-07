@@ -2,8 +2,8 @@
 local C = {}
 C.Title = "CREDIT CARD STEALER"
 C.Subtitle = "Small cards. Big cartoon trouble."
-C.Schema = 3
-C.Release = "CARD CITY / AFTER HOURS"
+C.Schema = 4
+C.Release = "CARD CITY / CITY SHIFT"
 C.StudioTestData = true -- Never opens the production store while true in Studio.
 C.StoreName = "CCSS_Production_v1"
 C.SaveInterval = 60
@@ -28,7 +28,7 @@ C.RarityColors = { Color3.fromRGB(187,194,210), Color3.fromRGB(112,242,193), Col
 C.Variants = { { Name = "Standard", Multiplier = 1, Weight = 88 }, { Name = "Foil", Multiplier = 1.5, Weight = 8 }, { Name = "Glitched", Multiplier = 2.2, Weight = 3 }, { Name = "Golden", Multiplier = 3.5, Weight = 1 } }
 C.Upgrades = {
  Sleight = { BaseCost = 40, Growth = 1.85, Max = 8, Description = "Timing sweep is 4% shorter per level." },
- Focus = { BaseCost = 55, Growth = 1.9, Max = 8, Description = "Success window gains 0.9% per level." },
+ Focus = { BaseCost = 55, Growth = 1.9, Max = 8, Description = "Success window gains 0.6% per level, within skill-based limits." },
  Capacity = { BaseCost = 60, Growth = 1.9, Max = 8, Description = "Carry two more cards per level." },
  Sneakers = { BaseCost = 65, Growth = 1.9, Max = 6, Description = "+0.8 movement speed per level; capped at 20.8." },
  Disguise = { BaseCost = 50, Growth = 1.85, Max = 8, Description = "Suspicion rises 7% slower per level." },
@@ -37,7 +37,7 @@ C.Upgrades = {
 C.Upgrades.Composure = { BaseCost = 90, Growth = 1.9, Max = 6, Description = "Reduces interaction Heat by 4% per level." }
 C.Upgrades.Gadgets = { BaseCost = 125, Growth = 2.1, Max = 4, Description = "Unlocks a confetti decoy. Higher levels add charges and reduce cooldown." }
 C.Upgrades.Appraisal = { BaseCost = 110, Growth = 1.95, Max = 6, Description = "Adds 4% rarity luck per level, weighted toward higher rarities." }
-C.Upgrades.Sleight.Description = "Shortens each timing stage; opens harder districts' targets."
+C.Upgrades.Sleight.Description = "Adds 1.8% phase time per level and opens harder districts' targets."
 C.Upgrades.Press = {BaseCost=100,Growth=1.85,Max=6,Description="Pressing batches is 7% faster per level."}
 C.Upgrades.Rinse = {BaseCost=120,Growth=1.85,Max=6,Description="Cartoon token rinsing is 7% faster per level."}
 C.Upgrades.Yield = {BaseCost=180,Growth=1.95,Max=6,Description="Processing pays 4% more per level."}
@@ -48,10 +48,19 @@ C.UpgradeGroups = {
  {Name="Operations",Tracks={"Terminal","Press","Rinse","Yield"}},
  {Name="Van",Tracks={"VanSlots","Engine"}},
 }
+C.Streets={"Crumb Avenue","Market Way","Ledger Street","Crown Row","Exchange Avenue"}
 C.City={DistrictSpacing=240,HalfWidth=120,HalfDepth=195,RoadHalfWidth=18,HideoutZ=108,HideoutX=-65}
 C.Processing={PressSeconds=18,RinseSeconds=14,SpeedPerLevel=0.07,YieldPerLevel=0.04,QueueCapacity=200}
 C.Van={Price=650,Reputation=30,BaseSlots=8,SlotsPerLevel=4,Speed=18,SpeedPerLevel=2,Acceleration=8,TurnRate=0.9,SummonCooldown=30}
-C.Traffic={Count=24,Speed=24,Acceleration=7,Braking=18,Gap=28,GreenSeconds=19,CrossingSeconds=7,Lane=8}
+C.Van.ReverseFraction=.4;C.Van.Braking=22;C.Van.Coast=5;C.Van.SteerAngle=.6;C.Van.Wheelbase=8.6;C.Van.AbandonSeconds=240;C.Van.InputTimeout=.6
+C.NPC={NearDistance=180,NearInterval=.25,FarInterval=1.25,PathInterval=2.5,MaxPaths=2,StuckSeconds=9,CrossSpeed=6}
+C.Speakers={
+ Mara={Role="Workshop operator",District=1,X=72,Z=76,Lines={"Read the route before you commit. One clean card beats a rushed mistake.","Secure cards in the cabinet, press the batch, rinse the tokens, then collect the payout."}},
+ Jax={Role="Courier mechanic",District=1,X=-94,Z=78,Lines={"Brake before a tight corner. Your rear doors are a saved mobile locker.","Garage bays need room. Stop before recovering a stuck van."}},
+ Wren={Role="City guide",District=1,X=64,Z=82,Lines={"Every avenue has a service lane. Keep your eyes open, not glued to signs.","The map marks places you have found. Souvenirs still take a little exploring."}},
+ Iris={Role="Night-shift coordinator",District=4,X=72,Z=76,Lines={"High stakes means reading changing lanes. A safe finish is still a win.","Vault gates follow their own rhythm. Watch a full pulse before crossing."}},
+}
+C.Traffic={Count=24,Speed=24,Acceleration=7,Braking=18,Gap=28,GreenSeconds=19,CrossingSeconds=9,Lane=8}
 C.Weather={Duration=210,Transition=24,DaySeconds=1440,Order={"Clear","Overcast","Rain","Fog"},Profiles={
  Clear={Clouds=0.15,Density=0.22,Haze=0.5,Brightness=2.3,Rain=false,Drive=1,Visibility=1},
  Overcast={Clouds=0.8,Density=0.32,Haze=1.2,Brightness=1.4,Rain=false,Drive=1,Visibility=1},
@@ -78,8 +87,8 @@ C.UpgradeOrder = { "Sleight", "Focus", "Capacity", "Sneakers", "Disguise", "Term
 C.UpgradeRep = {0,0,20,50,100,200,400,650}
 C.UpgradeRanks = {"DIY", "Streetwise", "Professional", "Legendary"}
 C.Approaches = {
- Careful = { Width = 1.15, Duration = 1.12, Heat = 0.8, Value = 1, Luck = 1, Description = "Wider zones, longer stages, 20% less Heat." },
- Bold = { Width = 0.85, Duration = 0.9, Heat = 1.4, Value = 1.2, Luck = 1.15, Description = "Narrower zones, faster stages, +20% card value, +15% rarity weights, 40% more Heat." },
+ Careful = { Width = 1.15, Duration = 1.12, Heat = 0.8, Value = 1, Luck = 1, Description = "Wider visible routes, one recovery, 20% less Heat." },
+ Bold = { Width = 0.85, Duration = 0.9, Heat = 1.4, Value = 1.2, Luck = 1.15, Description = "Changing lanes, reversing patterns and later memory routes. +20% card quality, +15% rarity luck, 40% more Heat." },
 }
 C.TargetStyles = {
  Daydreamer = { Name = "Daydreamer", Stages = 1, Width = 1.08, Luck = 1, Value = 1, Speed = 3.4, Flavor = "Busy counting imaginary pigeons." },
@@ -88,6 +97,16 @@ C.TargetStyles = {
  VIP = { Name = "Fancy VIP", Stages = 3, Width = 0.9, Luck = 1.35, Value = 1.25, Speed = 4.2, Flavor = "Pays for everything with royal raccoon treats." },
 }
 C.Stealing = { StageLead = 0.6, Drift = 0.055, ComboCap = 5, ComboValue = 0.03, Composure = 0.04, Appraisal = 0.04, RaritySlope = 0.45, CancelHeat = 10 }
+C.Round={Duration=3.25,Width=0.235,Lead=0.55,MaxBackdate=0.4,RecoveryQuality=0.8,BonusValue=0.15,BonusFailureQuality=0.75,DecisionSeconds=7,ErrorHeat=6}
+C.ModeOrder={"Practice","Careful","Bold","DailyDrill","Vault"}
+C.Modes={
+ Practice={Name="Workshop practice",Start="Practice console",Objective="Read a route, match its lanes and lock in the mint zone.",Pressure="One recovery; no Heat or loot at risk.",Reward="Medals and a saved personal best; no money or cards.",Duration="10–20 seconds",Requirement="Any workshop",Gear="Focus widens zones; Sleight adds a little phase time."},
+ Careful={Name="Street / careful",Start="Scout a citizen",Objective="Clear the route, recover one mistake, then secure your card.",Pressure="Nearby security and carried cards remain at risk.",Reward="One fictional collectible; optional +15% quality bonus.",Duration="8–20 seconds",Requirement="District access and Sleight rating",Gear="Focus, Sleight, Composure; one decoy can stabilize a phase."},
+ Bold={Name="Street / high stakes",Start="Scout a citizen / choose Bold",Objective="Remember harder routes, change lanes and earn a stronger card.",Pressure="Tighter zones, reversed patterns, memory in later districts; +40% Heat.",Reward="+20% card quality, +15% rarity luck; optional bonus risk.",Duration="10–22 seconds",Requirement="District access and Sleight rating",Gear="Same controls; gear helps without choosing a lane for you."},
+ DailyDrill={Name="Daily route drill",Start="Practice console",Objective="Master today's shared, seeded four-step route.",Pressure="High-stakes patterns with one recovery; no loot or Heat at risk.",Reward="Daily best and career medal only. Fast retries.",Duration="12–22 seconds",Requirement="Any workshop",Gear="Fixed training gear keeps the daily pattern comparable."},
+ Vault={Name="Vault Run",Start="Starter workshop vault terminal",Objective="Move through five pulsing gates, collect the trophy, reach the exit.",Pressure="65-second course; active beams fail the run. Bank pockets first.",Reward="$1,200, 20 REP and a Golden collection discovery, once per completed run.",Duration="Up to 65 seconds",Requirement="90 REP, empty pockets, kiosk and available room",Gear="Movement skill; sneaker speed is bounded."},
+}
+C.MedalRanks={Retry=0,Bronze=1,Silver=2,Gold=3,Platinum=4}
 C.Gadget = { BaseCharges = 1, ChargeLevels = 2, Cooldown = 28, CooldownPerLevel = 3, DistractSeconds = 3.5, HeatRelief = 12 }
 C.HideoutOrder = {"Lounge", "Workshop", "Display", "Network"}
 C.HideoutUpgrades = {
@@ -158,5 +177,5 @@ C.Contracts = {
 }
 C.ContractOrder={"mara_1","mara_2","mara_3","jax_1","jax_2","jax_3","wren_1","wren_2","wren_3","iris_1","iris_2","iris_3"}
 -- Add only audio assets you own or are permitted to use. Empty means intentionally silent.
-C.Audio = { Music = "", Click = "", Success = "", Failure = "", Bank = "", Reveal = "", Alert = "", Capture = "" }
+C.Audio = {Music="",Ambient="",Engine="",Machine="",Click="rbxasset://sounds/electronicpingshort.wav",Success="rbxasset://sounds/electronicpingshort.wav",Failure="rbxasset://sounds/electronicpingshort.wav",Bank="rbxasset://sounds/electronicpingshort.wav",Reveal="rbxasset://sounds/electronicpingshort.wav",Alert="rbxasset://sounds/electronicpingshort.wav",Capture="rbxasset://sounds/electronicpingshort.wav"}
 return C

@@ -76,8 +76,8 @@ function R.travelCost(level: number, district: number, config: any): number
  return math.floor(config.Hideout.TravelFare*(district-1)*(1-level*config.Hideout.TravelDiscount))
 end
 function R.upgradeEffect(name: string, level: number, config: any): string
- if name=="Sleight" then return string.format("%d%% shorter stages · access rating %d",level*config.Timing.SleightSpeed*100,level)
- elseif name=="Focus" then return string.format("+%.1f%% success window",level*config.Timing.FocusWidth*100)
+ if name=="Sleight" then return string.format("+%.1f%% phase time · access rating %d",level*1.8,level)
+ elseif name=="Focus" then return string.format("+%.1f%% success window",level*0.006*100)
  elseif name=="Capacity" then return tostring(R.capacity(level,config)).." card slots"
  elseif name=="Sneakers" then return string.format("%.1f movement speed",16+level*0.8)
  elseif name=="Disguise" then return string.format("%d%% less lingering suspicion",level*config.Suspicion.DisguiseReduction*100)

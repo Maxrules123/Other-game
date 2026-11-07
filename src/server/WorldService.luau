@@ -1,6 +1,7 @@
 --!strict
 local C=require(game:GetService("ReplicatedStorage").Shared.Config)
 local F=require(script.Parent.ModelFactory)
+local Stations=require(script.Parent.StationModels)
 local CosmeticModels=require(game:GetService("ReplicatedStorage").Shared.CosmeticModels)
 local P=C.Palette
 local W: any={Centers={},Checkpoints={},SafeZones={},Targets={},Guards={},Stations={},StationParts={},Secrets={},SecretParts={}}
@@ -9,6 +10,10 @@ local function part(parent: Instance,name: string,size: Vector3,cf: CFrame,color
  return p
 end
 local function block(parent: Instance,name: string,x: number,y: number,z: number,w: number,h: number,d: number,color: Color3,material: Enum.Material?): Part
+ if W.Map and (name=="Closed repair-shop facade" or name=="Terrace brick house" or name=="Distant rowhouse") then table.insert(W.Map.Buildings,{X=x,Z=z,Width=w,Depth=d}) end
+ if W.Map and (name=="Main road" or name=="Perimeter road" or name=="Cross avenue" or name=="Back lane" or name=="Alley pavers") then
+  table.insert(W.Map.Roads,{X=x,Z=z,Width=w,Depth=d,Kind=if name=="Back lane" or name=="Alley pavers" then "Alley" else "Road",Name=if name=="Main road" then C.Streets[math.clamp(math.floor((x+C.City.HalfWidth)/C.City.DistrictSpacing)+1,1,5)] else name})
+ end
  return part(parent,name,Vector3.new(w,h,d),CFrame.new(x,y,z),color,material)
 end
 local function label(p: BasePart,value: string,color: Color3?)
@@ -17,7 +22,7 @@ local function label(p: BasePart,value: string,color: Color3?)
  local padding=Instance.new("UIPadding"); padding.PaddingLeft=UDim.new(0.06,0); padding.PaddingRight=UDim.new(0.06,0); padding.PaddingTop=UDim.new(0.1,0); padding.PaddingBottom=UDim.new(0.1,0); padding.Parent=t
 end
 local function prompt(p: BasePart,title: string,action: string,id: string?)
- local q=Instance.new("ProximityPrompt"); q.ActionText=title; q.ObjectText=p.Name; q.KeyboardKeyCode=Enum.KeyCode.E; q.GamepadKeyCode=Enum.KeyCode.ButtonX; q.MaxActivationDistance=11; q.RequiresLineOfSight=true; q:SetAttribute("Action",action); q:SetAttribute("Id",id or ""); q.Parent=p
+ local q=Instance.new("ProximityPrompt"); q.ActionText=title; q.ObjectText=p.Name; q.KeyboardKeyCode=Enum.KeyCode.E; q.GamepadKeyCode=Enum.KeyCode.ButtonX; q.MaxActivationDistance=11; q.RequiresLineOfSight=false;q.ClickablePrompt=true;q.Exclusivity=Enum.ProximityPromptExclusivity.OnePerButton; q:SetAttribute("Action",action); q:SetAttribute("Id",id or ""); q.Parent=p
 end
 local function model(parent: Instance,name: string): Model
  local m=Instance.new("Model"); m.Name=name; m.ModelStreamingMode=Enum.ModelStreamingMode.Atomic; m.Parent=parent; return m
@@ -62,7 +67,7 @@ local function interior(parent: Instance,x: number,z: number,kind: string,color:
    end
   end
   block(parent,"Checkout counter",x,2,z-10,12,4,3,color)
-  sign(parent,x,6,z-14,12,2,"CRUMBS / NOT CASH",P.Gold,true)
+  sign(parent,x,6,z-14,12,2,"CRUMB MART",P.Gold,true)
  elseif kind=="Laundry" then
   for n=-1,1 do
    local washer=block(parent,"Bubble washer",x+n*8,2.5,z-8,6,5,5,P.White)
@@ -83,19 +88,20 @@ local function interior(parent: Instance,x: number,z: number,kind: string,color:
    block(parent,"Accessory pedestal",x-9+n*4,2,z-9,3,4,3,P.Panel,Enum.Material.Wood)
    CosmeticModels.build(parent,id,CFrame.new(x-9+n*4,if id=="courier_pack" then 5 else 4.3,z-9),Vector3.new(2,1.6,1))
   end
-  sign(parent,x,6,z-14,16,2,"SECOND SHIFT / APPEARANCE ONLY",P.Gold,true)
+  sign(parent,x,6,z-14,16,2,"SECOND SHIFT",P.Gold,true)
  elseif kind=="Office" then
   block(parent,"Reception desk",x,2,z-8,13,4,4,color)
   for _,side in {-1,1} do bench(parent,x+side*10,z+3); plant(parent,x+side*12,z-9) end
-  sign(parent,x,7,z-14,15,2,"LOBBY / FICTIONAL BUSINESS",P.Gold,true)
+  sign(parent,x,7,z-14,15,2,"RECEPTION",P.Gold,true)
  else
   block(parent,"Service counter",x,2,z-9,23,4,4,color)
   for n=-1,1 do cafeTable(parent,x+n*9,z+4,color) end
-  sign(parent,x,6,z-14,18,2,if kind=="Bank" then "NO REAL ACCOUNTS HERE" else "TODAY'S SPECIAL / NOODLES",P.Gold,true)
+  sign(parent,x,6,z-14,18,2,if kind=="Bank" then "NIGHT EXCHANGE" else "TODAY'S SPECIAL / NOODLES",P.Gold,true)
  end
 end
 local function shop(parent: Instance,x: number,z: number,w: number,h: number,name: string,color: Color3,kind: string)
  local m=model(parent,name)
+ if W.Map then table.insert(W.Map.Buildings,{X=x,Z=z,Width=w,Depth=32}) end
  block(m,"Shop floor",x,0.4,z,w,0.8,32,Color3.fromRGB(198,191,182),Enum.Material.Concrete)
  for _,side in {-1,1} do block(m,"Shop side wall",x+side*w/2,h/2,z,1,h,32,color,Enum.Material.Brick) end
  block(m,"Back wall",x,h/2,z-16,w,h,1,color,Enum.Material.Brick)
@@ -154,15 +160,15 @@ function W:Hideout(parent: Instance,x: number,district: number)
  F.locker(m,CFrame.new(cx-17,0.8,cz-20),Color3.fromRGB(91,112,105))
  F.chair(m,CFrame.new(cx+10,0.8,cz+2)*CFrame.Angles(0,-0.4,0),Color3.fromRGB(113,102,126))
  F.chair(m,CFrame.new(cx+19,0.8,cz+2)*CFrame.Angles(0,0.4,0),Color3.fromRGB(113,102,126))
- block(m,"Planning desk",cx+15,3,cz+7,13,0.4,5,Color3.fromRGB(139,105,77),Enum.Material.Wood)
- for _,dx in {10,20} do block(m,"Desk steel leg",cx+dx,1.8,cz+7,0.3,3.6,4,P.Panel,Enum.Material.Metal) end
- for n=1,4 do block(m,"Planning papers",cx+11+n*1.8,3.3,cz+7,1.5,0.06,2.2,Color3.fromRGB(219,210,183)).CFrame*=CFrame.Angles(0,n*0.13,0) end
  F.machine(m,CFrame.new(cx-23,0.8,cz+10),"IMAGINARY INK PRESS",P.Purple)
  F.machine(m,CFrame.new(cx-23,0.8,cz),"CARTOON TOKEN RINSE",Color3.fromRGB(104,154,139))
  local function station(name: string,dx: number,dz: number,action: string,title: string,col: Color3,w: number?): Part
-  local pos=Vector3.new(cx+dx,3,cz+dz)
-  local p=block(m,name,pos.X,pos.Y,pos.Z,w or 5,4,1.4,col,Enum.Material.Metal)
-  label(p,title,P.White); prompt(p,"Use "..name,action)
+  local pos=Vector3.new(cx+dx,.8,cz+dz)
+  local p
+  if action=="Press" or action=="Rinse" or action=="Wardrobe" then p=block(m,name,pos.X,pos.Y+2.5,pos.Z,.5,.5,.5,col);p.Transparency=1;p.CanCollide=false;p.CanQuery=false
+  else p=Stations.build(m,CFrame.new(pos),action,name) end
+  prompt(p,"Use "..name,action)
+  pos=p.Position
   self.Stations[action]=self.Stations[action] or {}; self.Stations[action][district]=pos
   self.StationParts[action]=self.StationParts[action] or {}; self.StationParts[action][district]=p
   return p
@@ -189,9 +195,11 @@ function W:Hideout(parent: Instance,x: number,district: number)
  -- The external dock allows van unloading without driving through a doorway.
  local dockPos=Vector3.new(cx-32.8,3,cz+18)
  local dock=block(m,"Dock card intake",dockPos.X,dockPos.Y,dockPos.Z,0.5,3,3,P.Mint,Enum.Material.Metal); prompt(dock,"Deposit cards / van intake","Bank")
+ F.part(m,"Dock intake slot",Vector3.new(.08,.22,1.8),CFrame.new(cx-33.12,3.4,cz+18),P.Charcoal,Enum.Material.Metal).CanCollide=false
+ F.sign(m,CFrame.new(cx-33.13,4.1,cz+18)*CFrame.Angles(0,math.pi/2,0),Vector3.new(2,.6,.08),"INTAKE",P.White).CanCollide=false
  local index=#C.Districts+district; self.Stations.Bank[index]=dockPos; self.StationParts.Bank[index]=dock
- local garagePos=Vector3.new(x-104,3,cz-7)
- local garage=block(m,"Garage intercom",garagePos.X,garagePos.Y,garagePos.Z,3,4,0.7,P.Panel,Enum.Material.Metal); label(garage,"COURIER / GARAGE",P.Mint); prompt(garage,"Van garage","Garage")
+ local garagePos=Vector3.new(x-104,.8,cz-7)
+ local garage=Stations.build(m,CFrame.new(garagePos),"Garage","Garage intercom");garagePos=garage.Position;prompt(garage,"Van garage","Garage")
  self.Stations.Garage=self.Stations.Garage or {}; self.Stations.Garage[district]=garagePos
  self.StationParts.Garage=self.StationParts.Garage or {}; self.StationParts.Garage[district]=garage
  self.VanSpawns[district]=CFrame.new(x-106,2.1,cz+7)
@@ -201,7 +209,7 @@ function W:Hideout(parent: Instance,x: number,district: number)
   block(m,"Pendant cable",cx+dx,13,cz,0.05,2.2,0.05,P.Panel,Enum.Material.Metal)
  end
  for n=1,5 do block(m,"Conduit pipe",cx-31.2,10+n*0.3,cz,0.16,0.16,43,Color3.fromRGB(96,108,111),Enum.Material.Metal) end
- sign(m,cx+12,8.5,cz+23.3,24,4,"CITY / AFTER HOURS\nEVERY CARD IS FICTIONAL",P.Muted)
+ sign(m,cx+12,8.5,cz+23.3,9,1.2,"NIGHT SHIFT",P.Muted)
  block(m,"Kitchen counter",cx+24,2.3,cz+12,8,4.6,4,Color3.fromRGB(107,115,106),Enum.Material.WoodPlanks)
  block(m,"Countertop",cx+24,4.8,cz+12,8.3,0.3,4.2,P.Muted,Enum.Material.Marble)
  block(m,"Mini fridge",cx+28,3,cz+19,4,6,3.5,Color3.fromRGB(133,144,140),Enum.Material.Metal)
@@ -210,6 +218,7 @@ end
 function W:Build()
  local old=workspace:FindFirstChild("CardCity"); if old then old:Destroy() end
  self.Centers={}; self.Checkpoints={}; self.SafeZones={}; self.Targets={}; self.Guards={}; self.Stations={}; self.StationParts={}; self.Secrets={}; self.SecretParts={}; self.VanSpawns={}; self.TrafficSignals={}; self.QuestPositions={}
+ self.Map={Roads={},Buildings={},Markers={},Bounds={MinX=-120,MaxX=(#C.Districts-1)*C.City.DistrictSpacing+120,MinZ=-195,MaxZ=195}}
  local root=Instance.new("Folder"); root.Name="CardCity"; root.Parent=workspace; self.Root=root
  local vegetation=Instance.new("Folder"); vegetation.Name="Vegetation"; vegetation.Parent=root; self.Vegetation=vegetation
  local secrets=Instance.new("Folder"); secrets.Name="Secrets"; secrets.Parent=root
@@ -221,7 +230,7 @@ function W:Build()
   block(ground,"Main road",x,0.1,0,240,0.2,36,Color3.fromRGB(49,53,66),Enum.Material.Asphalt)
   for _,side in {-1,1} do
    block(ground,"Paved sidewalk",x,0.35,side*26,240,0.7,16,Color3.fromRGB(190,191,198),Enum.Material.Concrete)
-   block(ground,"Mint curb",x,0.45,side*18.2,240,0.9,0.6,d.Color)
+   block(ground,"Concrete curb",x,0.45,side*18.2,240,0.9,0.6,Color3.fromRGB(168,172,170))
    for dx=-112,112,16 do block(ground,"Sidewalk seam",x+dx,0.72,side*26,0.08,0.02,14,Color3.fromRGB(163,164,173)).CanCollide=false end
   end
   block(ground,"Back lane",x,0.2,-79,240,0.4,12,Color3.fromRGB(118,123,137),Enum.Material.Cobblestone)
@@ -235,11 +244,12 @@ function W:Build()
   for n=1,3 do
    local height=if i==3 then 31+n*9 elseif i==5 then 25+n*7 elseif i==4 then 17 else 12+n*2
    local kind=if n==3 then "Outfitter" elseif i==1 and n==1 then "Market" elseif i==1 and n==2 then "Laundry" elseif i==3 and n<3 then "Office" elseif i==5 and n<3 then "Bank" else "Cafe"
-   shop(facade,x+(n-2)*46,-46,32,height,(if n==3 then "SECOND SHIFT OUTFITTERS" else shopNames[i][n]),d.Color:Lerp(P.White,n*0.08),kind)
+   shop(facade,x+(n-2)*46,-46,32,height,(if n==3 then "SECOND SHIFT OUTFITTERS" else shopNames[i][n]),Color3.fromRGB(155+n*4,149+n*3,137+n*4):Lerp(d.Color,.23),kind)
   end
   self:Hideout(root,x,i)
-  local counterPos=Vector3.new(x+46,3,-49)
-  local counter=block(facade,"Outfitters register",counterPos.X,counterPos.Y,counterPos.Z,4,3,1,P.Panel,Enum.Material.Metal); label(counter,"STYLE SHOP",P.Gold); prompt(counter,"Browse cosmetics","CosmeticShop")
+  local counterPos=Vector3.new(x+46,5,-55.8)
+  local counter=block(facade,"Outfitters register",counterPos.X,counterPos.Y,counterPos.Z,2.6,1.5,.16,P.Panel,Enum.Material.Metal);
+  block(facade,"Register stand",counterPos.X,4.3,-55.5,.3,.7,.4,P.Panel,Enum.Material.Metal).CanCollide=false;label(counter,"SECOND SHIFT",P.Gold); prompt(counter,"Browse cosmetics","CosmeticShop")
   self.Stations.CosmeticShop=self.Stations.CosmeticShop or {}; self.Stations.CosmeticShop[i]=counterPos
   self.StationParts.CosmeticShop=self.StationParts.CosmeticShop or {}; self.StationParts.CosmeticShop[i]=counter
   local detail=model(root,d.Name.." / Street Life")
@@ -251,28 +261,28 @@ function W:Build()
   end
   for _,dx in {-62,62} do
    block(detail,"Fire hydrant",x+dx,1.3,24,0.8,2.6,0.8,Color3.fromRGB(207,102,93))
-   for _,side in {-1,1} do block(detail,"Safety bollard",x+dx+side*3,1.5,14,0.6,3,0.6,P.Gold) end
+   for _,side in {-1,1} do block(detail,"Safety bollard",x+dx+side*3,1.5,20.8,0.6,3,0.6,P.Gold) end
   end
   local bus=block(detail,"Bus shelter roof",x+47,8,36,13,0.6,6,d.Color)
   block(detail,"Bus shelter back",x+47,4,39,13,8,0.4,P.Panel)
   sign(detail,x+47,5.5,38.6,9,2,"CARD CITY / EASTBOUND",P.Mint)
   bench(detail,x+47,36)
   for _,dx in {41,53} do block(detail,"Bus shelter post",x+dx,4,33,0.5,8,0.5,P.Charcoal) end
-  local car=block(detail,"Cartoon delivery van",x+83,2.7,54,11,4.4,5,d.Color)
-  block(detail,"Van cabin",x+79,4,54,4,2,4.4,P.Panel)
-  for _,wx in {-1,1} do for _,wz in {-1,1} do
-   local wheel=block(detail,"Rubber tire",x+83+wx*3.5,1.4,54+wz*2.6,2.5,1,2.5,P.Charcoal); wheel.Shape=Enum.PartType.Cylinder; wheel.Size=Vector3.new(1,2.5,2.5); wheel.CFrame*=CFrame.Angles(0,math.pi/2,0)
-  end end
-  sign(detail,x+84,3,51.4,7,2,"CRUMB COURIER",P.White)
+  local parked=F.vehicle(detail,CFrame.new(x+83,2.2,54)*CFrame.Angles(0,math.pi/2,0),true,Color3.fromRGB(88,116,106))
+  parked.Name="Parked courier van"
+  local collider=F.part(parked,"Parked body collision",Vector3.new(5.8,4.2,11.5),CFrame.new(x+83,3.5,54)*CFrame.Angles(0,math.pi/2,0),P.Panel);collider.Transparency=1
+  for _,side in {-1,1} do block(detail,"Courier parking stripe",x+83,.32,54+side*4.5,17,.04,.18,P.White).CanCollide=false end
   F.dumpster(detail,CFrame.new(x-59,0.7,-67))
   for n=1,3 do block(detail,"Stacked delivery crates",x+59,1+n,-69-n,3,2,3,Color3.fromRGB(153,120,81),Enum.Material.WoodPlanks) end
-  sign(detail,x-68,7,-28,17,3,string.upper(d.Name),d.Color,true)
-  sign(detail,x+69,5,-72,8,3,"BACK LANE\nSHOPS / SECRETS",P.Gold,true)
+  F.streetSign(detail,CFrame.new(x-99,.7,21),C.Streets[i],"Foundry Lane")
+  F.streetSign(detail,CFrame.new(x+99,.7,-21)*CFrame.Angles(0,math.pi,0),C.Streets[i],"Foundry Lane")
+  F.roadSign(detail,CFrame.new(x+65,.7,23)*CFrame.Angles(0,math.pi,0),"LIMIT\n20")
+  F.roadSign(detail,CFrame.new(x+92,.7,63),"P\nCOURIER")
   local landmark=model(root,d.Name.." / Courtyard")
   if i==1 then
    fountain(landmark,x+45,58,P.Mint)
    for _,dx in {28,62} do cafeTable(landmark,x+dx,76,d.Color); plant(landmark,x+dx,42,true) end
-   sign(landmark,x+45,6,87,22,3,"CRUMB SQUARE / LOCAL LEGENDS",P.Mint)
+   sign(landmark,x+45,5,87,12,1.5,"CRUMB SQUARE",P.Mint)
   elseif i==2 then
    for n=1,3 do
     local dx=x+22+n*12
@@ -281,23 +291,23 @@ function W:Build()
     sign(landmark,dx,5,72.6,8,2,({"BANANA BUNS","GOBLIN RAMEN","MOON SHAKES"})[n],P.White)
     cafeTable(landmark,dx,51,d.Color)
    end
-   sign(landmark,x+45,8,88,30,4,"PLAZA / THE FOOD LOOP",P.Gold)
+   sign(landmark,x+45,6,88,12,1.5,"MARKET COURT",P.Gold)
   elseif i==3 then
    block(landmark,"Transit canopy",x+46,10,63,34,1,22,P.Panel)
    for _,dx in {31,61} do block(landmark,"Transit column",x+dx,5,63,1,10,1,d.Color) end
    for n=1,5 do block(landmark,"Transit seating tier",x+45,0.2+n*0.5,77+n*1.4,28,n,1.5,Color3.fromRGB(133,145,163)) end
-   sign(landmark,x+46,7,53,28,4,"MOONVAULT TRANSIT\nNEXT TRAIN / EVENTUALLY",P.Mint)
+   sign(landmark,x+46,7,53,16,1.6,"MOONVAULT TRANSIT",P.Mint)
    for _,dx in {28,64} do plant(landmark,x+dx,45,true) end
   elseif i==4 then
    fountain(landmark,x+45,58,P.Gold)
    for _,dx in {25,65} do for _,z in {42,78} do plant(landmark,x+dx,z,true) end end
    for dx=24,66,7 do block(landmark,"Estate fence post",x+dx,2.5,88,0.5,5,0.5,P.Gold) end
-   sign(landmark,x+45,7,88,24,3,"ROYAL GARDEN / KEEP IT CLASSY",P.Gold)
+   sign(landmark,x+45,5,88,11,1.5,"CROWN GARDEN",P.Gold)
   else
    block(landmark,"Exchange plaza stage",x+45,1,61,28,2,23,P.Panel)
-   local sculpture=block(landmark,"Giant fictional card sculpture",x+45,9,65,11,7,0.7,P.Purple,Enum.Material.Metal); sculpture.CFrame*=CFrame.Angles(0,0,math.rad(13)); label(sculpture,"VOID / FICTION",P.Gold)
+   local sculpture=block(landmark,"Giant fictional card sculpture",x+45,9,65,11,7,0.7,P.Purple,Enum.Material.Metal); sculpture.CFrame*=CFrame.Angles(0,0,math.rad(13)); label(sculpture,"VOID",P.Gold)
    for _,dx in {28,62} do block(landmark,"Mint accent pillar",x+dx,5,65,0.6,10,0.6,P.Mint,Enum.Material.Neon); plant(landmark,x+dx,44) end
-   sign(landmark,x+45,7,88,28,3,"NIGHT EXCHANGE / NO REAL MONEY",P.Purple)
+   sign(landmark,x+45,5,88,12,1.5,"NIGHT EXCHANGE",P.Purple)
   end
   for _,offset in {Vector3.new(-83,0,178),Vector3.new(-40,0,178),Vector3.new(8,0,178),Vector3.new(62,0,178),Vector3.new(84,0,98)} do plant(detail,x+offset.X,offset.Z,true) end
   -- Larger blocks include both perimeter traffic lanes, residential walks, and service alleys.
@@ -342,10 +352,6 @@ function W:Build()
    local trinket=block(m,"City souvenir",pos.X,pos.Y,pos.Z,1.6,1.6,1.6,P.Gold,Enum.Material.Metal); trinket.Shape=Enum.PartType.Ball; trinket.CanCollide=false; trinket:SetAttribute("SecretId",id)
    prompt(trinket,"Discover "..C.Secrets[id].Name,"Secret",id); self.Secrets[id]=pos; self.SecretParts[id]=trinket
   end
-  if i<=4 then
-   local speaker=({"Mara","Jax","Wren","Iris"})[i]
-   self.QuestPositions[speaker]=Vector3.new(x+72,0,76)
-  end
   for n=1,12 do
    local dx=-82+(n-1)*14
    local pos=Vector3.new(x+dx,0,if n%2==0 then 26 else -26)
@@ -355,6 +361,9 @@ function W:Build()
     local door=x+(if n==3 then -46 else 0)
     route={Vector3.new(door,3.8,-26),Vector3.new(door,3.8,-38),Vector3.new(door,3.8,-26),pos+Vector3.new(0,3.8,0)}
     activity=if n==3 then "Browsing shelves" else "Laundry break"
+   elseif n==4 then
+    route={Vector3.new(x,3.8,26),Vector3.new(x,3.8,21),Vector3.new(x,3.8,-21),Vector3.new(x,3.8,-26),Vector3.new(x+12,3.8,-26),Vector3.new(x,3.8,-21),Vector3.new(x,3.8,21)}
+    activity="Crossing the avenue"
    elseif n==10 then route={pos+Vector3.new(0,3.8,0),Vector3.new(x+47,3.8,29),Vector3.new(x+47,3.8,34)}; activity="Waiting for bus" end
    table.insert(self.Targets,{Id=string.format("D%dN%d",i,n),District=i,Position=pos,Style=if n==6 then "VIP" elseif n==4 or n==8 then "Collector" elseif n%3==0 then "Commuter" else "Daydreamer",PauseLabel=activity,Route=route})
   end
@@ -368,10 +377,16 @@ function W:Build()
  end
  for _,side in {-1,1} do block(root,"City boundary",480,20,side*196,1202,40,2,P.Panel).Transparency=1 end
  for _,x in {-121,1081} do block(root,"City end",x,20,0,2,40,394,P.Panel).Transparency=1 end
+ for speaker,def in C.Speakers do self.QuestPositions[speaker]=Vector3.new((def.District-1)*C.City.DistrictSpacing+def.X,0,def.Z) end
  local spawn=Instance.new("SpawnLocation"); spawn.Name="Clubhouse checkpoint"; spawn.Size=Vector3.new(6,1,6); spawn.CFrame=self.Checkpoints[1]*CFrame.new(0,-2.5,0); spawn.Anchored=true; spawn.Neutral=true; spawn.Transparency=1; spawn.CanCollide=false; spawn.Parent=root
- local vault=block(root,"Vault Run kiosk",C.City.HideoutX+8,3,C.City.HideoutZ-20,5,6,2,P.Purple); label(vault,"VAULT RUN / 90 REP",P.Gold); prompt(vault,"Start Vault Run","Vault")
+ local vault=Stations.build(root,CFrame.new(C.City.HideoutX+8,.8,C.City.HideoutZ-20),"Vault","Vault terminal");prompt(vault,"Start Vault Run","Vault")
  self.DeliveryBay=Vector3.new(C.City.DistrictSpacing+82,2,51)
  local delivery=block(root,"Plaza delivery bay",self.DeliveryBay.X,0.3,self.DeliveryBay.Z,12,0.2,20,P.Gold); delivery.CanCollide=false; prompt(delivery,"Deliver courier parcel","Deliver")
+ local kinds={Bank={Kind="Hideout",Label="Workshop",Prefix="hideout"},Shop={Kind="Gear",Label="Equipment",Prefix="gear"},Practice={Kind="Practice",Label="Practice",Prefix="practice"},Garage={Kind="Garage",Label="Courier garage",Prefix="garage"},CosmeticShop={Kind="Style",Label="Outfitters",Prefix="style"},Press={Kind="Press",Label="Ink press",Prefix="press"},Rinse={Kind="Rinse",Label="Token rinse",Prefix="rinse"},Payout={Kind="Payout",Label="Payout printer",Prefix="payout"}}
+ for action,def in kinds do for district=1,#C.Districts do local position=self.Stations[action] and self.Stations[action][district];if position then table.insert(self.Map.Markers,{Id=def.Prefix.."_"..district,Kind=def.Kind,Label=def.Label,Position=position,District=district}) end end end
+ table.insert(self.Map.Markers,{Id="vault",Kind="Vault",Label="Vault Run",Position=vault.Position,District=1})
+ table.insert(self.Map.Markers,{Id="delivery",Kind="Delivery",Label="Plaza delivery bay",Position=self.DeliveryBay,District=2})
+ for speaker,position in self.QuestPositions do table.insert(self.Map.Markers,{Id="contact_"..speaker,Kind="Contact",Label=speaker,Position=position,District=self:DistrictAt(position) or 1}) end
  return root
 end
 W.Part=part; W.Label=label
