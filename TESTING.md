@@ -1,99 +1,85 @@
-# Verification and release gate
+# City Shift verification and Studio checks
 
-## Checks executed in this environment
+## Executed here
 
-- All 19 Luau source files compiled using Luau CLI 0.745.
-- Rojo 7.7.1 successfully built the complete DataModel.
-- 183 automated assertions exercised actual Config, Rules, PlayerDataService, InventoryService, MissionService, InteractionService, SecurityService, and GameService source using mocked engine boundaries.
-- Tests cover receipt-time scoring, early/late misses, capacity, reachable catalog entries, variant/bank multipliers, capped identity bonuses, load/reload, overlapping save sessions, stale and expired leases, load failures, unsupported schemas, simultaneous claims, replayed tokens, timeouts, Heat/suspicion increments, banking, purchases, district requirements, capture rounding/immunity, clean-trip eligibility, daily rotation/idempotent claims, duplicate discovery rewards, and prestige reset/preserve behavior.
+- Luau CLI 0.745 compiled all **37** production source files.
+- **253** domain assertions executed actual Config, Rules, Data, Inventory, Missions, Interaction, Security, Processing, Vehicle storage and Cosmetic transaction code under mocked engine boundaries.
+- **1162** world/model/environment assertions executed actual map/model constructors, NPC routes, traffic and weather logic, R15 construction using an API fixture, wearable construction/restoration, and physical-van model setup under lightweight instance/vector mocks.
+- **491** UI component assertions executed every panel at desktop, portrait and compact-landscape mock sizes, including shop/item/full-avatar previews, touch-target dimensions, staged input, modal reset wording and cleanup. This does not render Roblox UI or validate actual device focus.
+- **13,585** new City Shift assertions cover **1,200 generated round cases**, solvable intervals, lane variation, recovery/tool costs, exact-once payouts, bounded timestamps, daily seeds, navigation/discovery, projection/rotation/clamping, driving math, spawn occupancy and Vault results. Engine services are mocked.
+- **165** asset checks validated nine OBJ models, triangle/vertex/UV/normal indices and bounds, unit normals, fifteen 512×512 PNG maps, and material references. These are source checks, not Roblox import tests.
+- Rojo 7.7.1 built the full DataModel. The packaged place is checked against the source text, and ZIP integrity is checked separately.
+- An offline unexpected-global-name scan found no undeclared names outside the known Roblox globals. This is not Roblox-aware strict type analysis.
 
-No Roblox Studio session was run. No device test, production DataStore test, pathfinding test, or Roblox-aware strict type analysis is claimed.
+The domain suite covers migration, save/lease failures, timing bounds/scaling and phase replays, no partial/duplicate rewards, capture protections, safe transactions, queue/full-capacity handling, processing stage order/offline timer/one-time payout, van ownership/transfers/capacity, story prerequisites/one-time rewards, cosmetic ownership/proximity/slot rules, and prestige preservation/reset behavior. The generated-world suite caught and prevented duplicate target identifiers.
 
-Additional executed check: 362 city-generation assertions ran actual WorldService and NPCService under lightweight instance/vector mocks. They check five safe-room checkpoints, every station, fifteen open-entry shops, 45 route/style definitions and actors, fifteen guards, fifteen secrets, starter inventory props, actor updates, and rebuild cleanup. These checks do not simulate collision or rendering.
+**No actual Roblox Studio session was available.** None of the following boxes is marked passed. Real R15 API permission/access, physics, navigation, lighting/rendering, platform persistence/concurrency, streaming and input must be verified before calling this release-ready.
 
-Expansion domain tests also cover schema-1 migration, phase tokens/replays, no partial rewards, drifting/reverse/bounce scoring, perfect-zone attainability, capped quality streaks, cancellation, zero-reward practice, facility affordability, decoy charges/cooldown/pursuit/reacquisition, courier risk restrictions, one-time/distant secret rewards, rarity luck without Common drops, and preservation of permanent home/journal/stats through prestige.
+## Focused checks for this update
 
-## Required Studio checks
+No Studio session was available here. These checks are required in Roblox Studio:
 
-Use Output to watch for runtime errors throughout. These are pending, not passed.
+1. Open this build and Play (F5). Leave the workshop, SCOUT a citizen, read the route, use J/K/L or lane taps, recover once, and test Secure versus Bonus. Check Output; test keyboard, controller and the Device Emulator.
+2. Try safe Practice and the UTC Daily Drill, fast retries and results. Use two test clients, simulated latency, cancellation, capture/death and respawn; verify one payout and no lingering input/movement lock.
+3. Press M. Compare road/building positions, player facing and goal edge markers with the scene. Discover/pin/arrive at services; accept/complete/pause contracts and check destination changes. Test north-up/rotation/zoom and compact portrait/landscape UI.
+4. Buy/summon/enter the van. Check acceleration, braking, capped reverse, curves, wheel travel/lights, road/curb collision, slope alignment, follow-camera restoration, owner-only access, occupied bays and stopped/overturned recovery. These physics behaviors cannot be established by mocked tests.
+5. Follow pedestrians at crossings and obstacles, inspect contacts/clerks and every workshop station, then exercise streaming and distant NPC updates. Check doors/colliders/asset proportions and simultaneous players using services.
+6. Test production persistence only in a separate private test experience/store. Validate schema-3 migration, an active processing batch, van stash, cosmetics, new map settings and round records across real rejoins. Studio test data is temporary by default.
 
-### Starter loop and environment
+## First play and tutorial
 
-- [ ] Open the included place; press Play; spawn at Starter Street without errors or falling.
-- [ ] A new player can attempt a nearby target within about 30 seconds.
-- [ ] Read target difficulty, rarity range, duration, suspicion, and equipment requirement.
-- [ ] Land a good and perfect timing hit; miss and time out; cancel an interaction.
-- [ ] Bank cards, receive Cash, buy Sleight, and advance onboarding.
-- [ ] Fill capacity and verify additional attempts are rejected.
-- [ ] Check paths, sign faces, occlusion, benches, car collision, lighting, district landmarks, and hideout safe-zone borders.
-- [ ] Visit each district, verify locked entry is returned to an unlocked checkpoint, and verify tougher targets require Sleight.
+- [ ] Open this version's CreditCardStealer.rbxl; Play; build city without runtime errors in Output.
+- [ ] Spawn on the workshop floor, use the clear doorway, reach the avenue through the side alley and complete the first successful target interaction in roughly 30 seconds.
+- [ ] Approach a citizen from multiple camera angles in both R15/fallback paths. See the floating E/X prompt and mint SCOUT button; test each plus E/X with native prompts disabled. A single key/tap opens one choice dialog. Walls, distance, recovery, typing, menus and active games block scouting appropriately; shops/machines retain their keys. Repeat after respawn and streaming out/in.
+- [ ] Complete Careful/Bold, every personality and each district's stage count. Verify narrower/faster/drifting endgame challenges stay attainable with gear, including high-ping simulation.
+- [ ] Miss later stages, time out, cancel, leave/rejoin and attempt simultaneous claims with two players. Award one card only after the full clear; a replayed phase token must not advance or award again.
+- [ ] Check first-time objective guidance through deposit, pressing, rinsing, payout and first upgrade.
 
-### Security and capture
+## Processing and persistence
 
-- [ ] Successful attempts add 9 Heat; failed attempts add 24; lingering suspicion can add 12.
-- [ ] Guards patrol, see a hot player in their field of view, and do not see through buildings.
-- [ ] Guards chase their selected player, route around solid geometry, lose sight, search, and drop pursuit.
-- [ ] Heat decays only after quiet time while unseen; mint hideouts recover reliably.
-- [ ] Capture removes ceil(carried cards × 0.5), returns to the checkpoint, and preserves saved Cash/upgrades/collection.
-- [ ] Ten seconds of capture grace prevent immediate repeat captures. Resetting/dying applies the same loot penalty so respawn cannot bypass risk.
-- [ ] Capture does not count as escape; a captured trip cannot finish the clean-trip objective.
+- [ ] Deposit pockets without receiving instant Cash. Queue count/value match server-calculated cards.
+- [ ] Press → Pressed → Rinse → Ready → Claim; each button requires the correct nearby machine. Verify no action bypasses a phase or pays twice.
+- [ ] Upgrade Press/Rinse/Yield. Current jobs keep their locked payout and timing; future jobs use the improvements.
+- [ ] Queue cards while a different batch runs; handle intake capacity without losing the remaining pockets.
+- [ ] Leave during both timed stages, rejoin after the timer and resume correctly. Keep queue/batch protected from capture.
+- [ ] Use a private published test experience/store to migrate real schema-1/2 fixtures to schema 3, retain all old fields and save/rejoin new queue, van, cosmetics and contract data.
+- [ ] Verify autosave, normal leave, lease ownership, concurrent-session rejection, shutdown and failure messages. Studio development mode must not open the production store.
 
-### Multiplayer and lifecycle
+## City, assets and people
 
-Use Studio **Test → Server & Clients** with at least two players.
+- [ ] Traverse the entire 1,200×390 layout and every alley/courtyard. Check corner/perimeter road alignment, shop entrances, floor heights, walls, tree trunks, interior camera/roof occlusion and path clearance.
+- [ ] Check all 65 unique targets, fifteen guards and four contacts. Verify R15 API success and fallback behavior; clothing/face/hair/phone/umbrella parts stay aligned to the actor.
+- [ ] Follow shopping/laundry/bus/phone routes. Confirm no repeated clipping through planters, furniture, doors or glass, and that rain/idle presentations make sense.
+- [ ] Test imported skins using ASSET-IMPORT.md; verify pivots, scale, glass opacity, material maps, native colliders/seats, and wheel spin. Confirm the original native fallback remains usable when ArtAssets is empty.
+- [ ] Check planted areas, vegetation sway, garden lighting, sign readability and workshop furniture/seats. Reduced motion should disable optional sway/rain motion.
+- [ ] Collect all fifteen souvenirs; enforce distance/district/one-time rewards, per-player hiding, streaming/rejoin and journal clues.
 
-- [ ] Two players attempting the same target get one reservation and one possible reward.
-- [ ] Different targets can be attempted independently.
-- [ ] One player's Heat does not make guards select a cool bystander.
-- [ ] Leaving mid-interaction releases the reservation; targets recover after attempts.
-- [ ] Reset/respawn and rejoin do not duplicate HUDs, inputs, target rewards, or handlers.
-- [ ] Simulate poor network conditions to assess timing/ping allowance.
-- [ ] Verify streamed districts and actors appearing/disappearing do not error on the client.
+## Traffic, van and security
 
-### Persistence
+- [ ] Observe both traffic directions, turning slowdown, acceleration/braking, headway, red-light stopping/committed crossing, pedestrian yielding, wheel spin, headlights and brake lights. Traffic should not damage/push pedestrians.
+- [ ] Buy/summon/enter the owner's van, drive/reverse/steer/stop/exit using keyboard, controller and touch. Verify its four wheel contacts, stability, camera, ground friction, turning response, server latency and collision groups in the actual engine.
+- [ ] Nonowners cannot drive, withdraw or deposit another player's stash. Occupied vehicles cannot be remotely re-summoned. Stop stale/invalid input, bound speed and handle falling/locked districts.
+- [ ] Store/withdraw near rear doors with each capacity boundary; never duplicate cards. Stash saves across leave and remains protected from capture.
+- [ ] Park by the external west-wall intake and transfer stash to processing. No street/remote deposit from elsewhere. Verify all five workshops' external intakes and garages, not only the last district.
+- [ ] Finish the actual driving/delivery contracts; delivered/claimed rewards cannot repeat.
+- [ ] Guards patrol and detect the intended hot player by sight/FOV, route around geometry, lose/search/capture, and cannot see through walls/imported cover. Weather visibility limits and decoy-owner suppression work without affecting cool bystanders.
+- [ ] Capture/death only removes the stated portion of pockets, breaks streak, marks surviving captured cards ineligible for clean batches, safely unseats players and grants grace. Cash, processing, stash and cosmetics stay safe.
 
-Use a private published test experience and development-only DataStore name when appropriate. Default Studio mode intentionally does not persist.
+## Quests, fashion and UI
 
-- [ ] Bank, buy upgrades, unlock a district, discover variants, progress/claim missions, change settings; leave/rejoin and verify each saved field.
-- [ ] Confirm production leases reject an overlapping session and allow rejoin after release.
-- [ ] Confirm autosaving and normal shutdown save; observe failure logs/messages under simulated API outages.
-- [ ] Studio test mode does not open the production store.
-- [ ] No profile load failure replaces prior data with defaults.
+- [ ] Follow all twelve story contracts, accepting/claiming near their actual giver; pausing/resuming keeps progress, prerequisites hold, and owned-van/souvenir/facility objectives do not deadlock returning players.
+- [ ] Daily UTC reset and all claims are server validated and idempotent. Starter clean-card objective uses one completed batch.
+- [ ] Browse each Outfitters register. Prices/REP are visible, purchases are one-time, balances stay nonnegative and no cosmetic gives gameplay bonuses.
+- [ ] Equip/remove all ten styles in every wardrobe. Slots, owned-only rules, full-avatar/item previews, respawn/rejoin, original headwear restoration and normal/layered/UGC avatar fit work. Wearables must stay massless/noncolliding.
+- [ ] Test every page at desktop, tablet, narrow portrait and landscape sizes against actual Roblox top bar/chat/thumbstick/jump controls. Test gamepad focus/scrolling, modal closure, text wrapping and 44px touch actions.
+- [ ] Rejoin/respawn without duplicating HUD, input handlers, effects or machine claims. Open a menu while driving; control input should stop the van safely.
+- [ ] Prestige confirmation matches every field reset/preserved, including queued processing, stash, ownership, cosmetics and contract progress. Cancel/expired/replayed confirmations cannot reset or grant again.
 
-### Activities and progression
+## Weather, lighting and performance
 
-- [ ] Starter chain progresses through collect, bank, upgrade, Heat/risk, district unlock, escape, and clean-trip jobs.
-- [ ] Three daily jobs rotate together at the UTC date boundary; claims cannot be duplicated.
-- [ ] Collection silhouettes and progress match actual discoveries; variant multipliers match value calculations.
-- [ ] Vault entry requires Reputation, proximity to kiosk, empty pockets, an available room, and completed cooldown.
-- [ ] Test every beam, ordered traversal, card pickup, exit, timeout, out-of-bounds failure, early leave, death/respawn, leaving server, cleanup, and replay.
-- [ ] Two simultaneous Vault Runs use different rooms and cannot award each other's rewards.
-- [ ] New Identity prerequisite failures preserve all data. Confirmation states the exact reset; one confirmation awards one badge/bonus; repeated requests cannot award more.
+- [ ] Observe a full 24-minute day/night cycle and weighted weather transitions over several periods. Density, cloud cover, grading, ambient light and rain intensity blend instead of popping or flashing.
+- [ ] Street/window/vehicle lights respond to darkness; workshop lights remain usable. Rain particles stop under roofs and follow the local camera without accumulating after respawn or weather changes.
+- [ ] Settings persist: volumes, reduced motion, optional shake and rain effects. Check the bundled UI ping feedback at both volume extremes. Optional music/ambient/engine slots need permitted uploaded IDs before their loops can be tested.
+- [ ] Profile a 12-player session with 65 articulated targets, fifteen guards, 24 traffic models, owned vans, vegetation, cosmetics, queues and Vault Runs. Check server raycasts/pathfinding, network replication, streamed object lifetime, client wheel/joint/preview render cost and memory over a long session.
 
-### Interface, performance, and assets
-
-- [ ] Desktop, narrow portrait phone, landscape phone, tablet, and gamepad can reach every tab, button, and confirmation.
-- [ ] Test automatic gamepad focus navigation and scrolling in all panels and modal dialogs.
-- [ ] Check UI against Roblox top bar, chat, thumbstick, jump button, and notched safe areas.
-- [ ] Card reveal is short, skippable, and does not block movement.
-- [ ] Reduced motion and camera shake settings work and persist. No flashing effects.
-- [ ] Add permitted sound assets and verify both volume controls and all cue names.
-- [ ] Profile with 12 players, 45 targets, fifteen guards, and concurrent Vault Runs; check pathfinding load and frame/network cost.
-
-Do not mark the game release-ready until these engine/device checks pass and any resulting issues are corrected.
-
-## Clubhouse Update checks
-
-- [ ] Enter all fifteen shops and five clubhouses; inspect open door clearance, roof/camera occlusion, stocked interiors, tables, furniture, lighting and sign directions.
-- [ ] Traverse alleys, back lanes and each courtyard; find all fifteen souvenirs without clipping into props.
-- [ ] Verify normal NPC routes and new limb motion do not cross street furniture; scouting pauses an NPC for eight seconds without blocking another player's claim.
-- [ ] Choose both approaches, clear every stage/personality, miss later stages, cancel and attempt token replays. Award exactly one card on a full clear.
-- [ ] Compare target styles, equipment effects and endgame rarity luck. Check tier costs/requirements/current-next text on every upgrade.
-- [ ] Verify the practice arcade and live cancellation cannot farm rewards or streaks.
-- [ ] Buy all clubhouse levels; verify recovery, display multiplier, supply capacity, courier fares and personal decorations for two different profiles.
-- [ ] Confirm only the decoy owner's pursuers are distracted, and a hot player can be reacquired after 3.5 seconds.
-- [ ] Test travel proximity, locked destinations, fares, cooldowns, Heat/chase rejection and carried-card rejection.
-- [ ] Verify souvenirs disappear only for the discovering player, pay once, reappear correctly for newcomers/streamed models, and persist after rejoin/prestige.
-- [ ] Load an actual schema-1 test profile into the new published private-test build; retain all existing progress and save/rejoin with schema-2 fields.
-- [ ] Open target previews, upgrade and Hideout menus on narrow portrait and landscape screens; test the close button, long scrolling descriptions, focus navigation, stage transitions and decoy touch button.
-- [ ] Profile with twelve players, 45 targets, fifteen guards, concurrent practice/Vault runs and live streaming before release.
+The mocked tests establish implementation behavior at their boundaries. They cannot replace these Studio checks.

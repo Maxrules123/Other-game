@@ -14,11 +14,11 @@ if not args.luau or not args.rojo:
 compiler = str(pathlib.Path(args.luau).with_name('luau-compile'))
 files = sorted((ROOT / 'src').rglob('*.luau'))
 for path in files:
-    result = subprocess.run([compiler, str(path)], capture_output=True, text=True)
+    result = subprocess.run([compiler, str(path)], stdout=subprocess.DEVNULL, stderr=subprocess.PIPE)
     if result.returncode:
-        raise SystemExit(result.stderr)
+        raise SystemExit(result.stderr.decode(errors="replace"))
 print(f'PASS: {len(files)} Luau files compiled')
-modules = ['shared/Config', 'shared/Rules', 'server/MissionService', 'server/InventoryService', 'server/PlayerDataService', 'server/InteractionService', 'server/SecurityService', 'server/GameService']
+modules = ['shared/Config', 'shared/Rules', 'shared/RoundRules', 'shared/MapRules', 'shared/VehicleRules', 'shared/CosmeticModels', 'server/MissionService', 'server/InventoryService', 'server/PlayerDataService', 'server/ProcessingService', 'server/InteractionService', 'server/SecurityService', 'server/VehicleService', 'server/CosmeticService', 'server/GameService']
 bundle = 'local Sources = {}\n'
 for module in modules:
     source = (ROOT / 'src' / (module + '.luau')).read_text()
@@ -30,7 +30,7 @@ with tempfile.TemporaryDirectory() as tmp:
     subprocess.run([args.luau, str(test)], check=True)
     subprocess.run([args.rojo, 'build', str(ROOT/'default.project.json'), '-o', str(pathlib.Path(tmp)/'game.rbxlx')], check=True)
 world_bundle = 'local Sources = {}\n'
-for module in ['shared/Config', 'server/WorldService', 'server/NPCService']:
+for module in ['shared/Config', 'shared/CosmeticModels', 'server/ModelFactory', 'server/StationModels', 'shared/Rules', 'server/WorldService', 'server/NPCService', 'server/EnvironmentService', 'server/TrafficService', 'server/CosmeticService']:
     source = (ROOT / 'src' / (module + '.luau')).read_text()
     world_bundle += 'Sources[' + json.dumps(module.split('/')[-1]) + '] = [====[\n' + source + '\n]====]\n'
 world_bundle += (ROOT / 'tests' / 'world.luau').read_text()
@@ -38,4 +38,22 @@ with tempfile.TemporaryDirectory() as tmp:
     test = pathlib.Path(tmp) / 'world.luau'
     test.write_text(world_bundle)
     subprocess.run([args.luau, str(test)], check=True)
+ui_bundle = 'local Sources = {}\n'
+for module in ['shared/Config', 'shared/Rules', 'shared/RoundRules', 'shared/MapRules', 'shared/VehicleRules', 'shared/CosmeticModels', 'client/UIComponents', 'client/TargetController', 'client/RoundController', 'client/MinimapController', 'client/UIController', 'client/InputController']:
+    source = (ROOT / 'src' / (module + '.luau')).read_text()
+    ui_bundle += 'Sources[' + json.dumps(module.split('/')[-1]) + '] = [====[\n' + source + '\n]====]\n'
+ui_bundle += (ROOT / 'tests' / 'ui.luau').read_text()
+with tempfile.TemporaryDirectory() as tmp:
+    test = pathlib.Path(tmp) / 'ui.luau'
+    test.write_text(ui_bundle)
+    subprocess.run([args.luau, str(test)], check=True)
+city_bundle = 'local Sources = {}\n'
+for module in ['shared/Config','shared/Rules','shared/RoundRules','shared/MapRules','shared/VehicleRules','server/InteractionService','server/NavigationService','server/VehicleService','server/VaultService']:
+    city_bundle += 'Sources[' + json.dumps(module.split('/')[-1]) + '] = [====[\n' + (ROOT/'src'/(module+'.luau')).read_text() + '\n]====]\n'
+city_bundle += (ROOT/'tests/city_shift.luau').read_text()
+with tempfile.TemporaryDirectory() as tmp:
+    test=pathlib.Path(tmp)/'city_shift.luau'
+    test.write_text(city_bundle)
+    subprocess.run([args.luau,str(test)],check=True)
+subprocess.run(['python3', str(ROOT/'tools/check_assets.py')], check=True)
 print('PASS: Rojo build. Roblox Studio runtime checks remain manual; see TESTING.md.')

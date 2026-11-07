@@ -1,23 +1,24 @@
 --!strict
 local SoundService=game:GetService("SoundService")
 local C=require(game:GetService("ReplicatedStorage").Shared.Config)
-local A: any={Settings={Music=0.35,Effects=0.7},Sounds={}}
+local A: any={Settings={Music=0.35,Effects=0.7},Sounds={},LastPlayed={}}
 function A:Init()
  local folder=Instance.new("Folder"); folder.Name="CardCityAudio"; folder.Parent=SoundService
  for name,id in C.Audio do
-  if id~="" then
-   local sound=Instance.new("Sound"); sound.Name=name; sound.SoundId=id; sound.Looped=name=="Music"; sound.Volume=if name=="Music" then self.Settings.Music else self.Settings.Effects; sound.Parent=folder
+  if id~="" and name~="Engine" and name~="Machine" then
+   local sound=Instance.new("Sound"); sound.Name=name; sound.SoundId=id; sound.Looped=name=="Music" or name=="Ambient";sound.PlaybackSpeed=({Click=1.9,Success=1.3,Failure=.65,Bank=1.1,Reveal=1.55,Alert=.8,Capture=.55})[name] or 1; sound.Volume=if name=="Music" then self.Settings.Music else self.Settings.Effects; sound.Parent=folder
    self.Sounds[name]=sound
   end
  end
  if self.Sounds.Music then self.Sounds.Music:Play() end
+ if self.Sounds.Ambient then self.Sounds.Ambient:Play() end
 end
 function A:Update(settings: any)
  self.Settings=settings
- for name,sound in self.Sounds do sound.Volume=if name=="Music" then settings.Music else settings.Effects end
+ for name,sound in self.Sounds do sound.Volume=if name=="Music" then settings.Music else settings.Effects*(if name=="Ambient" then .16 else .28) end
 end
 function A:Play(name: string)
  local sound=self.Sounds[name]
- if sound then sound.TimePosition=0; sound:Play() end
+ if sound and os.clock()-(self.LastPlayed[name] or -1)>.09 then self.LastPlayed[name]=os.clock();sound:Stop();sound.TimePosition=0;sound:Play() end
 end
 return A

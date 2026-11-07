@@ -14,11 +14,11 @@ end
 function S:Move(guard: any, destination: Vector3, speed: number, dt: number)
  local root=guard.Model.PrimaryPart
  local delta=destination-root.Position; delta=Vector3.new(delta.X,0,delta.Z)
- if delta.Magnitude<0.5 then return end
+ if delta.Magnitude<0.5 then guard.Model:SetAttribute("WalkSpeed",0); return end
  local step=delta.Unit*math.min(delta.Magnitude,speed*dt)
  if self:Visible(root.Position,root.Position+step*1.5) then
   local pos=root.Position+step
-  guard.Model:PivotTo(CFrame.lookAt(pos,pos+delta.Unit))
+  guard.Model:PivotTo(CFrame.lookAt(pos,pos+delta.Unit)); guard.Model:SetAttribute("MotionTarget",guard.Model.PrimaryPart.CFrame); guard.Model:SetAttribute("WalkSpeed",speed)
  end
 end
 function S:Path(guard: any, destination: Vector3, now: number)
@@ -52,7 +52,7 @@ function S:Tick(now: number, dt: number)
     local pRoot=G:Root(player)
     if G.Data:Get(player) and pRoot and not s.Vault and s.Immunity<now and s.Heat>=C.Heat.ChaseAt and (s.DecoyUntil or 0)<=now and not G.World:InsideSafe(pRoot.Position) then
      local delta=pRoot.Position-root.Position
-     local attentive=d.Detection*(0.75+s.Heat/200)
+     local attentive=d.Detection*(0.75+s.Heat/200)*(C.Weather.Profiles[G.Environment.State].Visibility or 1)
      if delta.Magnitude<attentive and delta.Magnitude>0 and root.CFrame.LookVector:Dot(delta.Unit)>0.25 and self:Visible(root.Position,pRoot.Position) then
       guard.Target=player; guard.LastSeen=now; guard.SeenPosition=pRoot.Position; guard.Waypoints=nil
       s.Chase=true; G:Notify(player,"Security spotted you! Break sight or reach a mint hideout.","Alert")

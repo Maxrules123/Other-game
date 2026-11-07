@@ -5,7 +5,7 @@ function V:Init(gameService: any) self.Game=gameService end
 function V:Start(player: Player)
  local G=self.Game; local p=G.Data:Get(player); local s=G.State[player]; local root=G:Root(player)
  if not p or not s or not root or s.Vault then return end
- if (root.Position-Vector3.new(-63,3,37)).Magnitude>14 then G:Notify(player,"Use the purple Vault Run kiosk in Starter Street."); return end
+ if (root.Position-Vector3.new(C.City.HideoutX+8,3,C.City.HideoutZ-20)).Magnitude>14 then G:Notify(player,"Use the purple Vault Run kiosk in Starter Street."); return end
  if p.Reputation<C.Vault.Rep then G:Notify(player,"Vault Run needs "..C.Vault.Rep.." Reputation."); return end
  if s.VaultCooldown>os.clock() then G:Notify(player,"Vault cooling down. Try again shortly."); return end
  if #s.Loot>0 then G:Notify(player,"Bank your carried cards before entering the vault."); return end
@@ -26,14 +26,16 @@ function V:Start(player: Player)
   local x=12+i*13
   local beam=part(folder,"Pulsing cartoon security",Vector3.new(1,10,23),CFrame.new(origin+Vector3.new(x,4,0)),C.Palette.Danger,Enum.Material.Neon)
   beam.CanCollide=false
-  local sign=part(folder,"Timing indicator",Vector3.new(7,2,0.5),CFrame.new(origin+Vector3.new(x-3,7,-11))*CFrame.Angles(0,math.pi,0),C.Palette.Panel)
-  G.World.Label(sign,"WAIT / GO",C.Palette.Mint)
+  for _,side in {-1,1} do part(folder,"Gate column",Vector3.new(.5,10,.5),CFrame.new(origin+Vector3.new(x,4,side*11.6)),C.Palette.Muted,Enum.Material.Metal) end
+  part(folder,"Gate lintel",Vector3.new(.5,.5,23.5),CFrame.new(origin+Vector3.new(x,9,0)),C.Palette.Muted,Enum.Material.Metal)
+  local sign=part(folder,"Timing indicator",Vector3.new(4,1.2,0.25),CFrame.new(origin+Vector3.new(x-3,7,-11))*CFrame.Angles(0,math.pi,0),C.Palette.Panel)
+  G.World.Label(sign,"GATE "..i,C.Palette.Mint)
   table.insert(hazards,beam)
  end
  local card=part(folder,"Vault card",Vector3.new(4,2.5,0.3),CFrame.new(origin+Vector3.new(90,3,0)),C.Palette.Gold,Enum.Material.Neon)
  local exit=part(folder,"Exit pad",Vector3.new(8,0.4,20),CFrame.new(origin+Vector3.new(108,-0.7,0)),C.Palette.Mint)
  G.World.Label(exit,"EXIT")
- s.Vault={Slot=slot,Folder=folder,Origin=origin,Return=root.CFrame,Ends=os.clock()+C.Vault.Duration,Hazards=hazards,Card=card,Collected=false,Stage=0,LastX=0}
+ s.Vault={Began=os.clock(),Slot=slot,Folder=folder,Origin=origin,Return=root.CFrame,Ends=os.clock()+C.Vault.Duration,Hazards=hazards,Card=card,Collected=false,Stage=0,LastX=0}
  s.VaultCooldown=os.clock()+C.Vault.Cooldown
  root.CFrame=CFrame.new(origin+Vector3.new(0,3,0)); s.LastPosition=root.Position; s.Immunity=os.clock()+C.Vault.Duration+5
  G:Notify(player,"VAULT RUN · Cross when beams fade. Grab the gold card, then reach the exit. Jumping cannot bypass beams.","Alert")
@@ -51,6 +53,13 @@ function V:Finish(player: Player, success: boolean, reason: string?)
   local loot={Id="D5R5",Variant="Golden"}; G.Inventory.discover(profile,loot)
   G:Notify(player,"VAULT CLEAR · +$"..C.Vault.Reward.." +20 REP · Golden Royal Treat indexed!","Bank")
  else G:Notify(player,reason or "Vault ended. Your saved progress is safe.","Failure") end
+ if profile then
+  local seconds=os.clock()-(v.Began or os.clock());local score=if success then 500+math.floor(math.max(0,C.Vault.Duration-seconds)*10) else 0
+  local key="Vault:D1";local best=profile.RoundRecords.Best[key] or 0;local medal=if success then (if seconds<35 then "Gold" else "Silver") else "Retry"
+  profile.RoundRecords.Rounds+=1
+  if success then profile.RoundRecords.Best[key]=math.max(best,score);if (C.MedalRanks[medal] or 0)>(C.MedalRanks[profile.RoundRecords.Medals[key] or "Retry"] or 0) then profile.RoundRecords.Medals[key]=medal end end
+  G.Remote:FireClient(player,"RoundResult",{Success=success,Reason=if success then "Five gates crossed / vault trophy secured" else reason or "Vault ended",Mode="Vault",Medal=medal,Score=score,Best=math.max(best,score),NewBest=success and score>best,Stages=5,Perfects=v.Stage,Mistakes=if success then 0 else 1,Bonus=false,Practice=false,Quality=1,Heat=0,Rep=if success then 20 else 0,Intake=0,Cash=if success then C.Vault.Reward else 0,Seconds=seconds})
+ end
 end
 function V:Tick(now: number)
  for player,s in self.Game.State do

@@ -1,7 +1,77 @@
 --!strict
 local C = require(game:GetService("ReplicatedStorage").Shared.Config)
-local N: any = { Targets = {}, Guards = {} }
+local F=require(script.Parent.ModelFactory)
+local Pathfinding=game:GetService("PathfindingService")
+local N: any = { Targets = {}, Guards = {}, ActivePaths=0 }
+function N:Prompt(model: Model,action: string,id: string,label: string): ProximityPrompt
+ -- A camera ray to a root inside an R15 torso can hit the citizen's own body.
+ -- InteractionService checks player distance and world obstruction on the server.
+ local point=Instance.new("Attachment"); point.Name="InteractionPoint"; point.Position=Vector3.new(0,2.6,0); point.Parent=model.PrimaryPart
+ local prompt=Instance.new("ProximityPrompt"); prompt.Name="CitizenInteraction"; prompt.ActionText=label; prompt.ObjectText=model.Name
+ prompt.KeyboardKeyCode=Enum.KeyCode.E; prompt.GamepadKeyCode=Enum.KeyCode.ButtonX
+ prompt.MaxActivationDistance=C.InteractDistance; prompt.RequiresLineOfSight=false; prompt.HoldDuration=0; prompt.ClickablePrompt=true
+ prompt.Exclusivity=Enum.ProximityPromptExclusivity.OnePerButton
+ prompt:SetAttribute("Action",action); prompt:SetAttribute("Id",id); prompt.Parent=point
+ return prompt
+end
+function N:Prepare()
+ -- Roblox supplies a genuine articulated R15 base; no unknown Toolbox scripts are loaded.
+ local ok,rig=pcall(function()
+  local description=Instance.new("HumanoidDescription")
+  description.BodyTypeScale=0.5; description.ProportionScale=0.3
+  description.HeadColor=Color3.fromRGB(218,177,142); description.LeftArmColor=description.HeadColor; description.RightArmColor=description.HeadColor
+  description.TorsoColor=C.Palette.Panel; description.LeftLegColor=C.Palette.Charcoal; description.RightLegColor=C.Palette.Charcoal
+  return game:GetService("Players"):CreateHumanoidModelFromDescriptionAsync(description,Enum.HumanoidRigType.R15)
+ end)
+ if ok then self.AvatarTemplate=rig; rig.Name="CityR15Template"; rig.Parent=nil
+ else warn("R15 rig unavailable; using detailed original fallback citizens.") end
+end
+function N:RigActor(parent: Instance,name: string,position: Vector3,color: Color3): Model
+ local model=self.AvatarTemplate:Clone(); model.Name=name; model.ModelStreamingMode=Enum.ModelStreamingMode.Atomic
+ local root=model:FindFirstChild("HumanoidRootPart"); model.PrimaryPart=root
+ local humanoid=model:FindFirstChildOfClass("Humanoid"); humanoid.DisplayDistanceType=Enum.HumanoidDisplayDistanceType.None; humanoid.AutoRotate=false; humanoid.WalkSpeed=0
+ for _,item in model:GetDescendants() do if item:IsA("BasePart") then item.Anchored=item==root; item.CanCollide=false; item.CanTouch=false; item.Massless=true end end
+ root.Transparency=1; model:PivotTo(CFrame.new(position+Vector3.new(0,3.8,0))); model:SetAttribute("R15Citizen",true)
+ local torso=model:FindFirstChild("UpperTorso")
+ if torso then
+  torso.Color=color
+  local function detail(name_: string,size: Vector3,offset: CFrame,col: Color3,material: Enum.Material?)
+   local p=F.part(model,name_,size,torso.CFrame*offset,col,material or Enum.Material.Fabric); p.Anchored=false; p.CanCollide=false; p.CanTouch=false; p.Massless=true
+   local weld=Instance.new("WeldConstraint"); weld.Part0=torso; weld.Part1=p; weld.Parent=p
+  end
+  detail("Jacket left lapel",Vector3.new(0.27,0.9,0.08),CFrame.new(-0.35,0.1,-0.55)*CFrame.Angles(0,0,-0.15),color:Lerp(C.Palette.White,0.2))
+  detail("Jacket right lapel",Vector3.new(0.27,0.9,0.08),CFrame.new(0.35,0.1,-0.55)*CFrame.Angles(0,0,0.15),color:Lerp(C.Palette.White,0.2))
+  detail("Shirt collar",Vector3.new(0.55,0.2,0.1),CFrame.new(0,0.65,-0.55),C.Palette.White)
+  detail("Tie",Vector3.new(0.12,0.8,0.1),CFrame.new(0,0.1,-0.6),C.Palette.Gold)
+  detail("Chest pocket",Vector3.new(0.32,0.24,0.08),CFrame.new(-0.65,-0.1,-0.57),color:Lerp(C.Palette.Charcoal,0.2))
+  for n=1,3 do detail("Jacket button",Vector3.new(0.07,0.07,0.08),CFrame.new(0,-0.15-n*0.15,-0.6),C.Palette.Muted,Enum.Material.Metal) end
+ end
+ local head=model:FindFirstChild("Head")
+ if head then
+  local face=head:FindFirstChildOfClass("Decal") or Instance.new("Decal"); face.Texture="rbxasset://textures/face.png"; face.Face=Enum.NormalId.Front; face.Parent=head
+  local hair=F.part(model,"Original hair cap",Vector3.new(1.6,0.5,1.5),head.CFrame*CFrame.new(0,0.6,0.08),Color3.fromRGB(66,48,45),Enum.Material.SmoothPlastic,Enum.PartType.Ball); hair.Anchored=false; hair.CanCollide=false; hair.Massless=true
+  local weld=Instance.new("WeldConstraint"); weld.Part0=head; weld.Part1=hair; weld.Parent=hair
+ end
+ local gui=Instance.new("BillboardGui"); gui.Name="Status"; gui.Size=UDim2.fromOffset(190,32); gui.StudsOffset=Vector3.new(0,3.6,0); gui.MaxDistance=23; gui.Parent=root
+ local label=Instance.new("TextLabel"); label.Name="Text"; label.Size=UDim2.fromScale(1,1); label.BackgroundColor3=C.Palette.Charcoal; label.BackgroundTransparency=0.22; label.TextColor3=C.Palette.White; label.Font=Enum.Font.GothamMedium; label.TextSize=11; label.TextWrapped=true; label.Parent=gui
+ local corner=Instance.new("UICorner"); corner.CornerRadius=UDim.new(0,8); corner.Parent=label
+ local shades={Color3.fromRGB(233,195,160),Color3.fromRGB(204,157,117),Color3.fromRGB(153,106,77),Color3.fromRGB(109,75,57),Color3.fromRGB(224,177,139)}
+ local skin=shades[(math.abs(math.floor(position.X+position.Z)*7+#name)%#shades)+1]
+ for _,partName in {"Head","LeftHand","RightHand"} do local skinPart=model:FindFirstChild(partName); if skinPart and skinPart:IsA("BasePart") then skinPart.Color=skin end end
+ local hand=model:FindFirstChild("RightHand")
+ if hand then
+  for _,spec in {{"CitizenPhone",Vector3.new(0.35,0.65,0.08),C.Palette.Charcoal,0},{"PhoneScreen",Vector3.new(0.28,0.51,0.02),C.Palette.Mint,-0.055}} do
+   local item=F.part(model,spec[1],spec[2],hand.CFrame*CFrame.new(0,-0.1,-0.36+spec[4]),spec[3],Enum.Material.SmoothPlastic); item.Anchored=false; item.CanCollide=false; item.CanQuery=false; item.Massless=true
+   local joint=Instance.new("WeldConstraint"); joint.Part0=hand; joint.Part1=item; joint.Parent=item
+  end
+ end
+ for _,spec in {{"Umbrella canopy",Vector3.new(3.6,0.5,3.6),Vector3.new(0.5,3.3,0),Enum.PartType.Ball},{"Umbrella shaft",Vector3.new(0.08,2.8,0.08),Vector3.new(0.5,1.8,0),Enum.PartType.Block}} do
+  local item=F.part(model,spec[1],spec[2],root.CFrame*CFrame.new(spec[3]),color,Enum.Material.SmoothPlastic,spec[4]); item.CanCollide=false; item.CanQuery=false
+ end
+ model.Parent=parent; return model
+end
 function N:Actor(parent: Instance, name: string, position: Vector3, color: Color3): Model
+ if self.AvatarTemplate then return self:RigActor(parent,name,position,color) end
  local model=Instance.new("Model"); model.Name=name; model.ModelStreamingMode=Enum.ModelStreamingMode.Atomic
  local function body(name_: string,size: Vector3,offset: Vector3,c: Color3): Part
   local p=Instance.new("Part"); p.Name=name_; p.Size=size; p.CFrame=CFrame.new(position+offset); p.Color=c; p.Anchored=true; p.CanCollide=false; p.CanTouch=false; p.Parent=model
@@ -15,64 +85,125 @@ function N:Actor(parent: Instance, name: string, position: Vector3, color: Color
  body("Right shoe",Vector3.new(0.85,1.8,1),Vector3.new(0.55,1.1,0),C.Palette.Charcoal)
  for _,side in {-1,1} do body("Eye",Vector3.new(0.15,0.2,0.12),Vector3.new(side*0.3,4.9,-0.76),C.Palette.Charcoal) end
  body("Cartoon smile",Vector3.new(0.45,0.1,0.1),Vector3.new(0,4.45,-0.74),C.Palette.Charcoal)
- local gui=Instance.new("BillboardGui"); gui.Name="Status"; gui.Size=UDim2.fromOffset(260,92); gui.StudsOffset=Vector3.new(0,4,0); gui.MaxDistance=48; gui.AlwaysOnTop=false; gui.Parent=root
+ local gui=Instance.new("BillboardGui"); gui.Name="Status"; gui.Size=UDim2.fromOffset(190,32); gui.StudsOffset=Vector3.new(0,3.4,0); gui.MaxDistance=23; gui.AlwaysOnTop=false; gui.Parent=root
  local label=Instance.new("TextLabel"); label.Name="Text"; label.Size=UDim2.fromScale(1,1); label.BackgroundColor3=C.Palette.Charcoal; label.BackgroundTransparency=0.18; label.TextColor3=C.Palette.White; label.Font=Enum.Font.GothamBold; label.TextSize=12; label.TextWrapped=true; label.Parent=gui
  local round=Instance.new("UICorner"); round.CornerRadius=UDim.new(0,8); round.Parent=label
  model.Parent=parent
  return model
 end
 function N:Build(world: any)
+ self.World=world;self.Targets={};self.Guards={};self.ActivePaths=0
  local folder=Instance.new("Folder"); folder.Name="Actors"; folder.Parent=world.Root; self.Folder=folder
  for _,spawn in world.Targets do
   local d=C.Districts[spawn.District]
   local style=spawn.Style or "Daydreamer"
-  local names={"Pip Crumble", "Mina Mints", "Duke Noodles", "Bea Banana", "Gus Goblin", "Lady Raccoon", "Mo Moon", "Vee Void", "Finn Foil"}
+  local names={"Pip Crumble", "Mina Mints", "Duke Noodles", "Bea Banana", "Gus Goblin", "Lady Raccoon", "Mo Moon", "Vee Void", "Finn Foil", "Tess Transit", "Noah Notes", "Rae Rain", "Zed Ledger"}
   local number=tonumber(string.match(spawn.Id,"N(%d+)")) or 1
-  local model=self:Actor(folder,names[number] or "Pocket Tourist",spawn.Position,d.Color:Lerp(C.Palette.Purple,number*0.035))
-  model:SetAttribute("Style",style)
+  local model=self:Actor(folder,names[number] or "Pocket Tourist",spawn.Position,Color3.fromRGB(101,115,117):Lerp(d.Color,.3))
+  model:SetAttribute("Style",style);model:SetAttribute("Role","Pedestrian")
   local accessory=Instance.new("Part"); accessory.Name=if style=="VIP" then "Fancy hat" else "Cartoon backpack"; accessory.Anchored=true; accessory.CanCollide=false; accessory.Size=if style=="VIP" then Vector3.new(2,1.1,2) else Vector3.new(1.5,1.8,0.6); accessory.CFrame=model.PrimaryPart.CFrame*CFrame.new(0,if style=="VIP" then 3 else 0,if style=="VIP" then 0 else 0.8); accessory.Color=if style=="Collector" then C.Palette.Gold else C.Palette.Panel; accessory.Parent=model
   model:SetAttribute("TargetId",spawn.Id)
-  local prompt=Instance.new("ProximityPrompt"); prompt.ActionText="Scout cartoon target"; prompt.ObjectText=d.Name.." target"; prompt.KeyboardKeyCode=Enum.KeyCode.E; prompt.GamepadKeyCode=Enum.KeyCode.ButtonX; prompt.MaxActivationDistance=11; prompt.RequiresLineOfSight=true; prompt:SetAttribute("Action","Target"); prompt:SetAttribute("Id",spawn.Id); prompt.Parent=model.PrimaryPart
-  self.Targets[spawn.Id]={Id=spawn.Id, District=spawn.District, Model=model, Prompt=prompt, Origin=spawn.Position+Vector3.new(0,3,0), Available=0, Reserved=nil, Suspicion=0, Phase=math.random()*6, State="Walking", Style=style, Route=spawn.Route, Waypoint=1, PauseUntil=0}
+  model:SetAttribute("TargetAvailable",true)
+  local prompt=self:Prompt(model,"Target",spawn.Id,"Scout citizen")
+  self.Targets[spawn.Id]={Id=spawn.Id, District=spawn.District, Model=model, Prompt=prompt, Origin=spawn.Position+Vector3.new(0,3.8,0), Available=0, Reserved=nil, Suspicion=0, Phase=math.random()*6, State="Walking", Style=style, PauseLabel=spawn.PauseLabel or "Window shopping", Route=spawn.Route, Waypoint=1, PauseUntil=0}
+ end
+ for speaker,position in world.QuestPositions do
+  local citizen=self:Actor(folder,speaker,position,C.Palette.Purple)
+  citizen:SetAttribute("Role","Contact");citizen.PrimaryPart.Status.Text.Text=speaker.." / "..C.Speakers[speaker].Role
+  self:Prompt(citizen,"Quest",speaker,"Talk to "..speaker)
+ end
+ for district=1,5 do
+  local clerk=self:Actor(folder,"Second Shift Clerk",Vector3.new((district-1)*C.City.DistrictSpacing+46,0,-60),Color3.fromRGB(90,119,110))
+  clerk:SetAttribute("Role","Style clerk");clerk.PrimaryPart.Status.Text.Text="SECOND SHIFT / STYLE CLERK"
+  self:Prompt(clerk,"CosmeticShop",tostring(district),"Browse styles")
  end
  for _,spawn in world.Guards do
-  local model=self:Actor(folder,"Cardboard Security",spawn.Position,C.Palette.Panel)
+  local model=self:Actor(folder,"Night Watch",spawn.Position,C.Palette.Panel)
   local hat=Instance.new("Part"); hat.Name="Security cap"; hat.Size=Vector3.new(2,0.6,2); hat.CFrame=model.PrimaryPart.CFrame*CFrame.new(0,2.6,0); hat.Anchored=true; hat.CanCollide=false; hat.Color=C.Palette.Gold; hat.Parent=model
-  table.insert(self.Guards,{Model=model,District=spawn.District,Origin=spawn.Position+Vector3.new(0,3,0),Target=nil,State="Patrol",LastSeen=0,LastPath=0,Waypoints=nil,Waypoint=1,Phase=math.random()*6, BackLane=spawn.BackLane})
+  table.insert(self.Guards,{Model=model,District=spawn.District,Origin=spawn.Position+Vector3.new(0,3.8,0),Target=nil,State="Patrol",LastSeen=0,LastPath=0,Waypoints=nil,Waypoint=1,Phase=math.random()*6, BackLane=spawn.BackLane})
  end
 end
-function N:Tick(now: number, dt: number)
+function N:React(position: Vector3,kind: string,radius: number)
+ local now=os.clock()
  for _,target in self.Targets do
-  target.Suspicion=math.max(0,target.Suspicion-dt*4)
-  local busy=target.Reserved~=nil or target.Available>now
-  target.Prompt.Enabled=not busy
-  target.Model:SetAttribute("Suspicion",math.floor(target.Suspicion))
-  if not busy and target.Route and now>=target.PauseUntil and now>=(target.PreviewUntil or 0) then
-   local root=target.Model.PrimaryPart
-   local destination=target.Route[target.Waypoint]
-   local delta=destination-root.Position
-   if delta.Magnitude<0.4 then
-    target.Waypoint=target.Waypoint%#target.Route+1; target.PauseUntil=now+1.5+(target.Phase%2); target.State="Pausing"
-   else
-    local speed=C.TargetStyles[target.Style].Speed
-    local position=root.Position+delta.Unit*math.min(delta.Magnitude,speed*dt)
-    target.Model:PivotTo(CFrame.lookAt(position,position+delta.Unit)); target.State="Walking"
-   end
-  elseif not busy then target.State="Pausing" end
-  local root=target.Model.PrimaryPart
-  local swing=if target.State=="Walking" and not busy then math.sin(now*6+target.Phase)*0.3 else 0
-  for _,side in {-1,1} do
-   local shoe=target.Model:FindFirstChild(if side<0 then "Left shoe" else "Right shoe")
-   local arm=target.Model:FindFirstChild(if side<0 then "Left arm" else "Right arm")
-   if shoe then shoe.CFrame=root.CFrame*CFrame.new(side*0.55,-1.9,0)*CFrame.Angles(side*swing,0,0) end
-   if arm then arm.CFrame=root.CFrame*CFrame.new(side*1.4,0,0)*CFrame.Angles(-side*swing,0,0) end
+  if not target.Reserved and (target.Model.PrimaryPart.Position-position).Magnitude<=radius then
+   target.ReactUntil=now+2.4;target.ReactPosition=position;target.Reaction=if kind=="Alert" then "What was that?" else "Did you see that?";target.NextThink=0
   end
-  local d=C.Districts[target.District]
-  local possible={}
-  for r,w in d.Weights do if w>0 then table.insert(possible,C.Rarities[r]) end end
-  local state=if target.Reserved then "BUSY" elseif target.Available>now then "RECOVERING" elseif target.Suspicion>40 then "SUSPICIOUS" else string.upper(target.State)
-  target.Model.PrimaryPart.Color=d.Color:Lerp(C.Palette.Danger,math.clamp(target.Suspicion/150,0,0.5))
-  target.Model.PrimaryPart.Status.Text.Text=string.format("%s / %s · %s\n%s\nSleight %d+ · Suspicion %d%%",target.Model.Name,C.TargetStyles[target.Style].Name,state,table.concat(possible," / "),d.Equipment,math.floor(target.Suspicion))
+ end
+end
+function N:Parameters(): RaycastParams
+ local params=RaycastParams.new();params.FilterType=Enum.RaycastFilterType.Exclude;params.RespectCanCollide=true
+ local filter: {Instance}={self.Folder}
+ if self.Game then for player in self.Game.State do if player.Character then table.insert(filter,player.Character) end end end
+ params.FilterDescendantsInstances=filter;return params
+end
+function N:Path(target: any,destination: Vector3,now: number)
+ if target.Computing or now<(target.NextPath or 0) or self.ActivePaths>=C.NPC.MaxPaths then return end
+ target.Computing=true;target.NextPath=now+C.NPC.PathInterval+target.Phase%1;self.ActivePaths+=1
+ local origin=target.Model.PrimaryPart.Position;local model=target.Model;local waypoint=target.Waypoint
+ task.spawn(function()
+  local ok,path=pcall(function()
+   local result=Pathfinding:CreatePath({AgentRadius=1.5,AgentHeight=5,AgentCanJump=false,WaypointSpacing=4})
+   result:ComputeAsync(origin-Vector3.new(0,2.8,0),destination-Vector3.new(0,2.8,0));return result
+  end)
+  if ok and path.Status==Enum.PathStatus.Success and model.Parent and not target.Reserved and target.Waypoint==waypoint then target.Path=path:GetWaypoints();target.PathStep=2 end
+  target.Computing=false;self.ActivePaths=math.max(0,self.ActivePaths-1)
+ end)
+end
+function N:Step(target: any,destination: Vector3,now: number,dt: number,params: RaycastParams)
+ local root=target.Model.PrimaryPart
+ if target.Path and target.Path[target.PathStep] then
+  local waypoint=target.Path[target.PathStep].Position;local point=Vector3.new(waypoint.X,target.Origin.Y,waypoint.Z)
+  if (point-root.Position).Magnitude<.8 then target.PathStep+=1;if not target.Path[target.PathStep] then target.Path=nil end else destination=point end
+ end
+ local delta=destination-root.Position;delta=Vector3.new(delta.X,0,delta.Z)
+ if delta.Magnitude<.5 then target.Waypoint=target.Waypoint%#target.Route+1;target.PauseUntil=now+1.2+target.Phase%2;target.State=target.PauseLabel;target.StuckAt=nil;return end
+ local crossing=math.abs(root.Position.X-self.World.Centers[target.District].X)<8 and root.Position.Z*destination.Z<0
+ if crossing and math.abs(root.Position.Z)>18 and self.Game then
+  local cycle=C.Traffic.GreenSeconds+C.Traffic.CrossingSeconds;local phase=now%cycle
+  if phase<C.Traffic.GreenSeconds or cycle-phase<(math.abs(root.Position.Z)+20)/C.NPC.CrossSpeed+.3 then target.State="Waiting at crossing";target.StuckAt=nil;return end
+ end
+ local speed=if crossing or math.abs(root.Position.Z)<18 then C.NPC.CrossSpeed else C.TargetStyles[target.Style].Speed
+ local direction=delta.Unit;local distance=math.min(delta.Magnitude,speed*dt)
+ local blocked=workspace:Raycast(root.Position,direction*(distance+1.4),params) or workspace:Raycast(root.Position-Vector3.new(0,2,0),direction*(distance+1.2),params)
+ if self.Game and self.Game.Vehicles then for _,van in self.Game.Vehicles.Vehicles do if van.Model.PrimaryPart and (van.Model.PrimaryPart.Position-root.Position).Magnitude<9 then blocked=true;break end end end
+ if blocked then
+  target.State="Waiting for a clear path";target.StuckAt=target.StuckAt or now
+  self:Path(target,target.Route[target.Waypoint],now)
+  if now-target.StuckAt>C.NPC.StuckSeconds then
+   target.Path=nil;target.Waypoint=target.Waypoint%#target.Route+1;target.StuckAt=now;target.PauseUntil=now+.7
+  end
+  return
+ end
+ local position=root.Position+direction*distance
+ target.Model:PivotTo(CFrame.lookAt(position,position+direction));target.State="Walking";target.StuckAt=nil;target.CurrentSpeed=speed
+end
+function N:Tick(now: number,dt: number)
+ local positions={}
+ if self.Game then for player in self.Game.State do local root=self.Game:Root(player);if root then table.insert(positions,root.Position) end end end
+ local params=self:Parameters()
+ for _,target in self.Targets do
+  local busy=target.Reserved~=nil or target.Available>now
+  target.Prompt.Enabled=not busy;target.Model:SetAttribute("TargetAvailable",not busy)
+  if not busy and now<(target.NextThink or 0) then continue end
+  local near=not self.Game
+  for _,position in positions do if (position-target.Model.PrimaryPart.Position).Magnitude<C.NPC.NearDistance then near=true;break end end
+  local elapsed=math.min(1.5,if target.LastThink then now-target.LastThink else dt);target.LastThink=now;target.NextThink=now+(if near then C.NPC.NearInterval else C.NPC.FarInterval+target.Phase%.25)
+  target.Suspicion=math.max(0,target.Suspicion-elapsed*4);target.Model:SetAttribute("Suspicion",math.floor(target.Suspicion));target.CurrentSpeed=0
+  local reaction=(target.ReactUntil or 0)>now
+  if reaction and not busy then
+   target.State="Reacting";local position=target.Model.PrimaryPart.Position;local look=Vector3.new(target.ReactPosition.X,position.Y,target.ReactPosition.Z)
+   if (look-position).Magnitude>.1 then target.Model:PivotTo(CFrame.lookAt(position,look)) end
+  elseif not busy and target.Route and now>=target.PauseUntil and now>=(target.PreviewUntil or 0) then
+   local yielding=false
+   for _,position in positions do if (position-target.Model.PrimaryPart.Position).Magnitude<2.8 then yielding=true;break end end
+   if yielding then target.State="Excuse me";target.PauseUntil=now+.4 else self:Step(target,target.Route[target.Waypoint],now,elapsed,params) end
+  elseif not busy then target.State=target.PauseLabel end
+  target.Model:SetAttribute("Activity",if busy then "Talking" else target.State)
+  target.Model:SetAttribute("MotionTarget",target.Model.PrimaryPart.CFrame);target.Model:SetAttribute("WalkSpeed",if target.State=="Walking" and not busy then target.CurrentSpeed else 0)
+  local outfit=target.Model:FindFirstChild("UpperTorso") or target.Model.PrimaryPart
+  outfit.Color=Color3.fromRGB(101,115,117):Lerp(C.Districts[target.District].Color,.3):Lerp(C.Palette.Danger,math.clamp(target.Suspicion/200,0,.18))
+  target.Model.PrimaryPart.Status.Text.Text=if reaction then target.Reaction else target.Model.Name.." / "..(if target.Reserved then "BUSY" elseif target.Available>now then "RECOVERING" else C.TargetStyles[target.Style].Name)
  end
 end
 return N
